@@ -16,6 +16,7 @@
       align-items: center;
       justify-content: center;
       margin: 0;
+      overflow: hidden;
     }
     .capture-container {
       background: #ffffff;
@@ -32,7 +33,7 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      object-fit: cover;
+      object-fit: contain;
       z-index: 1000;
       background: rgba(0, 0, 0, 0.9);
     }
@@ -116,7 +117,14 @@
       pointer-events: none;
     }
     .face-oval {
-      position: absolute;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40vw;
+      max-width: 400px;
+      height: 60vh;
+      max-height: 600px;
       border: 4px dashed #10b981;
       border-radius: 50%;
       box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
@@ -126,9 +134,9 @@
       animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
+      0% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.05); }
+      100% { transform: translate(-50%, -50%) scale(1); }
     }
     .face-instructions {
       position: fixed;
@@ -162,6 +170,7 @@
       font-weight: 500;
       z-index: 1001;
       max-width: 90%;
+      transition: opacity 0.3s;
     }
     .countdown {
       position: fixed;
