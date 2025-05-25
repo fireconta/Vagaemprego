@@ -9,23 +9,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      background: linear-gradient(to bottom, #1e40af, #60a5fa);
+      background: #000;
       font-family: 'Poppins', sans-serif;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
       margin: 0;
+      padding: 0;
       overflow: hidden;
-    }
-    .capture-container {
-      background: #ffffff;
-      border-radius: 24px;
-      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
-      padding: 2.5rem;
-      max-width: 800px;
-      width: 90%;
-      text-align: center;
     }
     .fullscreen-video {
       position: fixed;
@@ -33,79 +21,8 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      object-fit: contain;
+      object-fit: cover;
       z-index: 1000;
-      background: rgba(0, 0, 0, 0.9);
-    }
-    .confirmation-modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1003;
-    }
-    .confirmation-modal img {
-      max-width: 85%;
-      max-height: 85%;
-      border-radius: 16px;
-      cursor: zoom-in;
-      transition: transform 0.3s, border-color 0.3s;
-      border: 3px solid #3b82f6;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-    }
-    .confirmation-modal img:focus {
-      border-color: #06b6d4;
-    }
-    .confirmation-modal img.zoomed {
-      transform: scale(1.6);
-    }
-    .confirmation-modal button.close {
-      position: absolute;
-      top: 24px;
-      right: 24px;
-      background: #ef4444;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 48px;
-      height: 48px;
-      font-size: 24px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .confirmation-modal button.close:hover {
-      background: #dc2626;
-    }
-    .confirmation-modal .buttons {
-      position: absolute;
-      bottom: 24px;
-      display: flex;
-      gap: 1rem;
-    }
-    .confirmation-modal .modal-button {
-      background: #3b82f6;
-      border-radius: 12px;
-      padding: 12px 24px;
-      font-size: 18px;
-      font-weight: 600;
-      color: white;
-      transition: background 0.2s, transform 0.2s;
-    }
-    .confirmation-modal .modal-button:hover {
-      background: #06b6d4;
-      transform: translateY(-2px);
-    }
-    .confirmation-modal .modal-button.confirm {
-      background: #10b981;
-    }
-    .confirmation-modal .modal-button.confirm:hover {
-      background: #059669;
     }
     .face-overlay {
       position: fixed;
@@ -121,56 +38,52 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 35vw;
-      min-width: 250px;
-      max-width: 350px;
-      height: 50vh;
-      min-height: 350px;
-      max-height: 500px;
-      border: 4px dashed #10b981;
+      width: 30vw;
+      min-width: 220px;
+      max-width: 320px;
+      height: 45vh;
+      min-height: 320px;
+      max-height: 450px;
+      border: 3px dashed #8b5cf6;
       border-radius: 50%;
-      box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
       box-sizing: border-box;
       transition: border-color 0.3s, transform 0.3s;
       z-index: 1002;
     }
-    .face-oval.pulse {
-      animation: pulse 1.5s infinite;
+    .face-oval.aligned {
+      border-color: #22c55e;
+      animation: pulse 1.2s infinite;
     }
     @keyframes pulse {
       0% { transform: translate(-50%, -50%) scale(1); }
-      50% { transform: translate(-50%, -50%) scale(1.05); }
+      50% { transform: translate(-50%, -50%) scale(1.03); }
       100% { transform: translate(-50%, -50%) scale(1); }
     }
     .face-instructions {
       position: fixed;
-      top: 24px;
+      top: 16px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0, 0.7);
       color: white;
-      padding: 12px 24px;
-      border-radius: 12px;
-      font-size: clamp(16px, 2.5vw, 18px);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: clamp(14px, 2vw, 16px);
       font-weight: 600;
       z-index: 1001;
-      animation: slideDown 0.5s ease-out;
       max-width: 90%;
-    }
-    @keyframes slideDown {
-      from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
-      to { transform: translateX(-50%) translateY(0); opacity: 1; }
     }
     .face-feedback {
       position: fixed;
-      bottom: 40px;
+      bottom: 24px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0, 0.7);
       color: white;
-      padding: 12px 24px;
-      border-radius: 12px;
-      font-size: clamp(14px, 2vw, 16px);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: clamp(12px, 1.8vw, 14px);
       font-weight: 500;
       z-index: 1001;
       max-width: 90%;
@@ -178,31 +91,98 @@
     }
     .countdown {
       position: fixed;
-      bottom: 100px;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -50%);
       color: white;
-      font-size: 28px;
+      font-size: 32px;
       font-weight: 700;
       z-index: 1001;
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0, 0.7);
       padding: 12px 24px;
       border-radius: 12px;
       transition: opacity 0.3s;
     }
+    .confirmation-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1003;
+    }
+    .confirmation-modal img {
+      max-width: 90%;
+      max-height: 80%;
+      border-radius: 12px;
+      cursor: zoom-in;
+      transition: transform 0.3s;
+      border: 2px solid #8b5cf6;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+    }
+    .confirmation-modal img.zoomed {
+      transform: scale(1.5);
+    }
+    .confirmation-modal button.close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .confirmation-modal button.close:hover {
+      background: #dc2626;
+    }
+    .confirmation-modal .buttons {
+      position: absolute;
+      bottom: 16px;
+      display: flex;
+      gap: 0.75rem;
+    }
+    .confirmation-modal .modal-button {
+      background: #8b5cf6;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .confirmation-modal .modal-button:hover {
+      background: #7c3aed;
+      transform: translateY(-2px);
+    }
+    .confirmation-modal .modal-button.confirm {
+      background: #22c55e;
+    }
+    .confirmation-modal .modal-button.confirm:hover {
+      background: #16a34a;
+    }
     .toast {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      padding: 12px 24px;
-      border-radius: 12px;
+      bottom: 16px;
+      right: 16px;
+      padding: 10px 20px;
+      border-radius: 8px;
       color: white;
       font-weight: 600;
       z-index: 1002;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 1.7s;
+      animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 1.5s;
     }
-    .toast-success { background: #10b981; }
+    .toast-success { background: #22c55e; }
     .toast-error { background: #ef4444; }
     @keyframes slideIn {
       from { transform: translateX(100%); opacity: 0; }
@@ -216,21 +196,21 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0, 0.7);
       color: white;
-      padding: 16px 32px;
-      border-radius: 12px;
-      font-size: 18px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
       font-weight: 600;
       z-index: 1001;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
     .model-loading::after {
       content: '';
-      width: 20px;
-      height: 20px;
+      width: 16px;
+      height: 16px;
       border: 3px solid white;
       border-top-color: transparent;
       border-radius: 50%;
@@ -242,26 +222,22 @@
   </style>
 </head>
 <body>
-  <div class="capture-container">
-    <h1 class="text-3xl font-bold mb-6 text-gray-900">Captura de Rosto</h1>
-    <p class="text-gray-700 mb-4">Posicione seu rosto dentro do oval para captura automática.</p>
-    <video id="face-video" class="hidden" autoplay></video>
-    <canvas id="face-canvas" class="hidden"></canvas>
-    <div id="face-overlay" class="face-overlay"></div>
-    <div id="face-instructions" class="face-instructions hidden">Centralize seu rosto no oval</div>
-    <div id="face-feedback" class="face-feedback hidden"></div>
-    <div id="countdown" class="countdown hidden"></div>
-    <div id="confirmationModal" class="confirmation-modal hidden">
-      <img id="confirmationImage" src="" alt="Foto capturada">
-      <button class="close">×</button>
-      <div class="buttons">
-        <button class="modal-button retake">Repetir</button>
-        <button class="modal-button confirm">Confirmar</button>
-      </div>
+  <video id="face-video" class="hidden" autoplay></video>
+  <canvas id="face-canvas" class="hidden"></canvas>
+  <div id="face-overlay" class="face-overlay"></div>
+  <div id="face-instructions" class="face-instructions hidden">Posicione seu rosto no oval</div>
+  <div id="face-feedback" class="face-feedback hidden"></div>
+  <div id="countdown" class="countdown hidden"></div>
+  <div id="confirmationModal" class="confirmation-modal hidden">
+    <img id="confirmationImage" src="" alt="Foto capturada">
+    <button class="close">×</button>
+    <div class="buttons">
+      <button class="modal-button retake">Repetir</button>
+      <button class="modal-button confirm">Confirmar</button>
     </div>
-    <div id="toast" class="toast hidden"></div>
   </div>
-  <div id="modelLoading" class="model-loading hidden">Carregando modelos...</div>
+  <div id="toast" class="toast hidden"></div>
+  <div id="modelLoading" class="model-loading hidden">Carregando...</div>
   <script src="capture-face.js"></script>
 </body>
 </html>
