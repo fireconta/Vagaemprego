@@ -6,25 +6,57 @@
   <title>Cadastro de Vagas de Emprego</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      background: linear-gradient(to bottom, #1e3a8a, #3b82f6);
-      font-family: 'Inter', sans-serif;
+      background: linear-gradient(to bottom, #1e40af, #60a5fa);
+      font-family: 'Poppins', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    @media (max-width: 640px) {
+      body { background: #1e40af; }
     }
     .form-container {
-      background: rgba(255, 255, 255, 0.95);
-      backdrop-filter: blur(12px);
-      border-radius: 16px;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+      padding: 2.5rem;
+      animation: fadeIn 0.5s ease-out;
+      box-sizing: border-box;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     input:focus, button:focus {
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
     }
     .help-text {
-      background: #e0f2fe;
-      border-left: 4px solid #3b82f6;
-      border-radius: 8px;
+      background: #eff6ff;
+      border-left: 6px solid #3b82f6;
+      border-radius: 12px;
+      transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+      overflow: hidden;
+    }
+    .help-text.collapsed {
+      max-height: 0;
+      opacity: 0;
+      padding: 0;
+      margin: 0;
+    }
+    .section-header {
+      font-size: clamp(1.25rem, 3vw, 1.5rem);
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
     }
     .fullscreen-video {
       position: fixed;
@@ -34,7 +66,7 @@
       height: 100vh;
       object-fit: cover;
       z-index: 1000;
-      background: black;
+      background: rgba(0, 0, 0, 0.9);
     }
     .capture-button {
       position: fixed;
@@ -44,7 +76,7 @@
       z-index: 1001;
       width: 80px;
       height: 80px;
-      background: #ef4444;
+      background: linear-gradient(to bottom, #ef4444, #dc2626);
       border: 4px solid white;
       border-radius: 50%;
       box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
@@ -53,8 +85,16 @@
       justify-content: center;
       transition: transform 0.2s, box-shadow 0.2s;
     }
+    .capture-button.enabled {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.1); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
     .capture-button:hover {
-      transform: translateX(-50%) scale(1.1);
+      transform: translateX(-50%) scale(1.15);
       box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
     }
     .capture-button:active {
@@ -71,57 +111,67 @@
     .captured-image {
       max-width: 100%;
       height: auto;
-      border-radius: 8px;
-      margin-top: 8px;
-      border: 1px solid #e5e7eb;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-radius: 12px;
+      margin-top: 1rem;
+      border: 2px solid #e5e7eb;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       cursor: pointer;
-      transition: transform 0.2s;
-      animation: fadeIn 0.3s ease-in;
+      transition: transform 0.3s, border-color 0.3s;
+      animation: slideIn 0.3s ease-out;
     }
     .captured-image:hover {
-      transform: scale(1.02);
+      transform: scale(1.03);
+      border-color: #3b82f6;
     }
-    @keyframes fadeIn {
+    @keyframes slideIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
     .field-group {
-      border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 1.5rem;
+      background: #f9fafb;
+      padding: 1.5rem;
+      border-radius: 12px;
       margin-bottom: 1.5rem;
+      transition: transform 0.2s;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    .field-group:hover {
+      transform: translateY(-2px);
     }
     .error-field {
       border-color: #ef4444 !important;
-      box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
     }
     .loading::after {
       content: '';
       display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 2px solid white;
+      width: 20px;
+      height: 20px;
+      border: 3px solid white;
       border-top-color: transparent;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin-left: 8px;
+      margin-left: 12px;
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
     .disabled-button {
-      opacity: 0.6;
+      opacity: 0.7;
       cursor: not-allowed;
+      background: #93c5fd !important;
     }
     .toast {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
+      bottom: 24px;
+      right: 24px;
       padding: 12px 24px;
-      border-radius: 8px;
+      border-radius: 12px;
       color: white;
-      font-weight: 500;
+      font-weight: 600;
       z-index: 1002;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s;
     }
     .toast-success { background: #10b981; }
@@ -144,11 +194,12 @@
       transform: translateX(-50%);
       background: #1f2937;
       color: white;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 14px;
       white-space: nowrap;
       z-index: 10;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
     .fullscreen-preview, .confirmation-modal {
       position: fixed;
@@ -156,51 +207,64 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(0, 0, 0, 0.9);
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 1003;
     }
     .confirmation-modal img {
-      max-width: 80%;
-      max-height: 80%;
-      border-radius: 8px;
+      max-width: 85%;
+      max-height: 85%;
+      border-radius: 16px;
       cursor: zoom-in;
-      transition: transform 0.3s;
+      transition: transform 0.3s, border-color 0.3s;
+      border: 3px solid #3b82f6;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    .confirmation-modal img:focus {
+      border-color: #06b6d4;
     }
     .confirmation-modal img.zoomed {
-      transform: scale(1.5);
+      transform: scale(1.6);
     }
     .fullscreen-preview button, .confirmation-modal button.close {
       position: absolute;
-      top: 20px;
-      right: 20px;
+      top: 24px;
+      right: 24px;
       background: #ef4444;
       color: white;
       border: none;
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      font-size: 20px;
+      width: 48px;
+      height: 48px;
+      font-size: 24px;
       cursor: pointer;
+      transition: background 0.2s;
+    }
+    .confirmation-modal button.close:hover {
+      background: #dc2626;
     }
     .confirmation-modal .buttons {
       position: absolute;
-      bottom: 20px;
+      bottom: 24px;
       display: flex;
-      gap: 16px;
+      gap: 1rem;
     }
     .confirmation-modal .buttons button {
       position: static;
       background: #3b82f6;
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-size: 16px;
-      transition: background 0.2s;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 18px;
+      font-weight: 600;
+      color: white;
+      transition: background 0.2s, transform 0.2s;
     }
     .confirmation-modal .buttons button:hover {
-      background: #2563eb;
+      background: #06b6d4;
+      transform: translateY(-2px);
     }
     .confirmation-modal .buttons button.confirm {
       background: #10b981;
@@ -210,17 +274,17 @@
     }
     .progress-bar {
       width: 100%;
-      height: 6px;
+      height: 8px;
       background: #e5e7eb;
-      border-radius: 3px;
-      margin-top: 8px;
+      border-radius: 4px;
+      margin-top: 1rem;
       display: none;
     }
     .progress-bar div {
       height: 100%;
-      background: #3b82f6;
-      border-radius: 3px;
-      transition: width 0.3s ease;
+      background: linear-gradient(to right, #3b82f6, #06b6d4);
+      border-radius: 4px;
+      transition: width 0.4s ease;
     }
     .face-overlay {
       position: fixed;
@@ -233,10 +297,10 @@
     }
     .face-oval {
       position: absolute;
-      border: 3px dashed #10b981;
+      border: 4px dashed #10b981;
       border-radius: 50%;
       animation: pulse 2s infinite;
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
     }
     @keyframes pulse {
       0% { border-color: #10b981; }
@@ -245,16 +309,19 @@
     }
     .face-instructions {
       position: fixed;
-      top: 20px;
+      top: 24px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       color: white;
       padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 16px;
+      border-radius: 12px;
+      font-size: clamp(16px, 2.5vw, 18px);
+      font-weight: 600;
       z-index: 1001;
       animation: slideDown 0.5s ease-out;
+      word-break: break-word;
+      max-width: 90%;
     }
     @keyframes slideDown {
       from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
@@ -265,137 +332,215 @@
       bottom: 120px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       color: white;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-size: 14px;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: clamp(14px, 2vw, 16px);
+      font-weight: 500;
       z-index: 1001;
+      word-break: break-word;
+      max-width: 90%;
+    }
+    .countdown {
+      position: fixed;
+      bottom: 200px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 28px;
+      font-weight: 700;
+      z-index: 1001;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 12px 24px;
+      border-radius: 12px;
     }
     .audio-button {
       position: fixed;
-      top: 20px;
-      right: 20px;
+      top: 24px;
+      right: 24px;
       background: #6b7280;
       color: white;
-      padding: 8px;
+      padding: 12px;
       border-radius: 50%;
       z-index: 1001;
       cursor: pointer;
+      transition: background 0.2s;
     }
     .audio-button:hover {
       background: #4b5563;
     }
+    .icon-gradient {
+      background: linear-gradient(to bottom, #3b82f6, #06b6d4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .file-upload-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: center;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .file-upload-container input[type="file"] {
+      max-width: 100%;
+      flex: 1 1 100%;
+    }
+    @media (min-width: 640px) {
+      .file-upload-container {
+        flex-wrap: nowrap;
+      }
+      .file-upload-container input[type="file"] {
+        flex: 1 1 auto;
+        max-width: 50%;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .form-container, .captured-image, .help-text, .confirmation-modal .buttons button {
+        animation: none;
+        transition: none;
+      }
+    }
   </style>
 </head>
-<body class="flex items-center justify-center min-h-screen">
-  <div class="form-container p-10 w-full max-w-2xl mx-4" role="main">
-    <h1 class="text-3xl font-extrabold mb-8 text-center text-gray-800">Cadastro para Vagas de Emprego</h1>
+<body>
+  <div class="form-container w-full max-w-3xl mx-4" role="main">
+    <h1 class="text-4xl font-bold mb-10 text-center text-gray-900">Cadastro para Vagas de Emprego</h1>
     
     <!-- Seção de Autoajuda -->
-    <div class="mb-6 p-4 rounded-lg help-text" role="region" aria-label="Instruções">
-      <h2 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
-        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <div class="mb-8">
+      <button id="toggleHelp" class="flex items-center gap-2 text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors" aria-expanded="true" aria-controls="helpSection">
+        <svg class="w-6 h-6 icon-gradient" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
         Como Tirar as Fotos
-      </h2>
-      <ul class="list-disc pl-5 text-sm text-gray-600 space-y-2">
-        <li><strong>Foto do Rosto</strong>: Posicione seu rosto dentro do oval na tela, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto. Siga as instruções na tela e confirme a foto capturada.</li>
-        <li><strong>Foto do Documento</strong>: Coloque o documento (RG ou CNH) sobre uma superfície plana, em um local bem iluminado, e capture a imagem de forma que todo o documento seja legível. Você também pode fazer upload de uma foto existente (JPEG ou PNG).</li>
-        <li><strong>Dicas Gerais</strong>: Use a câmera frontal (rosto) ou traseira (documento). Certifique-se de que a imagem esteja nítida e sem sombras. Clique no botão redondo para capturar.</li>
-      </ul>
+      </button>
+      <div id="helpSection" class="mt-4 p-6 rounded-lg help-text" role="region" aria-label="Instruções">
+        <ul class="list-disc pl-6 text-base text-gray-700 space-y-3">
+          <li><strong>Foto do Rosto</strong>: Posicione seu rosto dentro do oval maior na tela, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto. Aguarde a contagem regressiva e confirme a foto capturada.</li>
+          <li><strong>Foto do Documento</strong>: Coloque o documento (RG ou CNH) sobre uma superfície plana, em um local bem iluminado, e capture a imagem de forma que todo o documento seja legível. Você também pode fazer upload de uma foto existente (JPEG ou PNG).</li>
+          <li><strong>Dicas Gerais</strong>: Use a câmera frontal (rosto) ou traseira (documento). Certifique-se de que a imagem esteja nítida e sem sombras. Clique no botão redondo para capturar.</li>
+        </ul>
+      </div>
     </div>
 
-    <form id="jobForm" enctype="multipart/form-data" class="space-y-6" aria-label="Formulário de Cadastro">
+    <form id="jobForm" enctype="multipart/form-data" class="space-y-8" aria-label="Formulário de Cadastro">
+      <!-- Dados Pessoais -->
       <div class="field-group">
-        <label for="fullName" class="block text-sm font-medium text-gray-700 flex items-center">
-          <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <h2 class="section-header">
+          <svg class="w-6 h-6 icon-gradient" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
           </svg>
-          Nome Completo
-        </label>
-        <input type="text" id="fullName" name="fullName" required
-               class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200"
-               aria-required="true" data-tooltip="Digite seu nome completo">
+          Dados Pessoais
+        </h2>
+        <div class="space-y-6">
+          <div>
+            <label for="fullName" class="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <svg class="w-5 h-5 icon-gradient" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
+              Nome Completo
+            </label>
+            <input type="text" id="fullName" name="fullName" required
+                   class="mt-2 block w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200 text-gray-900"
+                   aria-required="true" data-tooltip="Digite seu nome completo">
+          </div>
+          <div>
+            <label for="birthDate" class="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <svg class="w-5 h-5 icon-gradient" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              Data de Nascimento
+            </label>
+            <input type="date" id="birthDate" name="birthDate" required
+                   class="mt-2 block w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200 text-gray-900"
+                   aria-required="true" data-tooltip="Selecione sua data de nascimento">
+          </div>
+          <div>
+            <label for="email" class="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <svg class="w-5 h-5 icon-gradient" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
+              </svg>
+              E-mail
+            </label>
+            <input type="email" id="email" name="email" required
+                   class="mt-2 block w-full p-4 border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200 text-gray-900"
+                   aria-required="true" data-tooltip="Ex.: seuemail@exemplo.com">
+          </div>
+        </div>
       </div>
+
+      <!-- Arquivos -->
       <div class="field-group">
-        <label for="birthDate" class="block text-sm font-medium text-gray-700 flex items-center">
-          <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-          </svg>
-          Data de Nascimento
-        </label>
-        <input type="date" id="birthDate" name="birthDate" required
-               class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200"
-               aria-required="true" data-tooltip="Selecione sua data de nascimento">
-      </div>
-      <div class="field-group">
-        <label for="email" class="block text-sm font-medium text-gray-700 flex items-center">
-          <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path>
-          </svg>
-          E-mail
-        </label>
-        <input type="email" id="email" name="email" required
-               class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200"
-               aria-required="true" data-tooltip="Digite um e-mail válido">
-      </div>
-      <div class="field-group">
-        <label for="resume" class="block text-sm font-medium text-gray-700 flex items-center">
-          <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <h2 class="section-header">
+          <svg class="w-6 h-6 icon-gradient" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
           </svg>
-          Currículo (PDF, máx. 5MB)
-        </label>
-        <input type="file" id="resume" name="resume" accept=".pdf" required
-               class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200"
-               aria-required="true" data-tooltip="Faça upload do seu currículo em PDF (máx. 5MB)">
-      </div>
-      <div class="field-group">
-        <label class="block text-sm font-medium text-gray-700 flex items-center">
-          <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-          </svg>
-          Foto com Confirmação do Rosto
-        </label>
-        <div class="flex items-center space-x-4">
-          <button type="button" id="captureFacePhoto" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200 tooltip" data-tooltip="Use a câmera frontal para capturar seu rosto">
-            Iniciar Captura
-          </button>
-          <input type="file" id="uploadFacePhoto" name="uploadFacePhoto" accept="image/jpeg,image/png" class="mt-1 block p-3 border border-gray-300 rounded-lg bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200 tooltip" data-tooltip="Faça upload de uma foto do rosto (JPEG ou PNG, máx. 5MB)">
+          Arquivos
+        </h2>
+        <div class="space-y-6">
+          <div>
+            <label for="resume" class="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <svg class="w-5 h-5 icon-gradient" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+              </svg>
+              Currículo (PDF, máx. 5MB)
+            </label>
+            <input type="file" id="resume" name="resume" accept=".pdf" required
+                   class="mt-2 block w-full p-3 border border-gray-200 rounded-xl bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200 text-gray-900"
+                   aria-required="true" data-tooltip="Faça upload do seu currículo em PDF (máx. 5MB)">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <svg class="w-5 h-5 icon-gradient" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+              </svg>
+              Foto com Confirmação do Rosto
+            </label>
+            <div class="file-upload-container mt-2">
+              <button type="button" id="captureFacePhoto" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-cyan-500 transition duration-200 font-semibold text-sm sm:text-base sm:px-6 sm:py-3 tooltip" data-tooltip="Use a câmera frontal para capturar seu rosto">
+                Iniciar Captura
+              </button>
+              <input type="file" id="uploadFacePhoto" name="uploadFacePhoto" accept="image/jpeg,image/png"
+                     class="p-3 border border-gray-200 rounded-xl bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200 text-gray-900 sm:p-4 tooltip"
+                     data-tooltip="Faça upload de uma foto do rosto (JPEG ou PNG, máx. 5MB)">
+            </div>
+            <video id="faceVideo" class="hidden" autoplay aria-hidden="true"></video>
+            <canvas id="faceCanvas" class="hidden" aria-hidden="true"></canvas>
+            <img id="facePhotoPreview" class="captured-image hidden" alt="Foto do Rosto" role="img" aria-label="Pré-visualização da foto do rosto">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <svg class="w-5 h-5 icon-gradient" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+              </svg>
+              Foto do Documento (RG ou CNH, JPEG/PNG, máx. 5MB)
+            </label>
+            <div class="file-upload-container mt-2">
+              <input type="file" id="documentPhoto" name="documentPhoto" accept="image/jpeg,image/png"
+                     class="p-3 border border-gray-200 rounded-xl bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200 text-gray-900 sm:p-4 tooltip"
+                     aria-required="true" data-tooltip="Faça upload de uma foto do documento (JPEG ou PNG, máx. 5MB)">
+              <button type="button" id="captureDocumentPhoto" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-cyan-500 transition duration-200 font-semibold text-sm sm:text-base sm:px-6 sm:py-3 tooltip" data-tooltip="Use a câmera traseira para capturar o documento">
+                Iniciar Captura
+              </button>
+            </div>
+            <video id="documentVideo" class="hidden" autoplay aria-hidden="true"></video>
+            <canvas id="documentCanvas" class="hidden" aria-hidden="true"></canvas>
+            <img id="documentPhotoPreview" class="captured-image hidden" alt="Foto do Documento" role="img" aria-label="Pré-visualização da foto do documento">
+          </div>
         </div>
-        <video id="faceVideo" class="hidden" autoplay aria-hidden="true"></video>
-        <canvas id="faceCanvas" class="hidden" aria-hidden="true"></canvas>
-        <img id="facePhotoPreview" class="captured-image hidden" alt="Foto do Rosto" role="img" aria-label="Pré-visualização da foto do rosto">
       </div>
-      <div class="field-group">
-        <label class="block text-sm font-medium text-gray-700 flex items-center">
-          <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-          </svg>
-          Foto do Documento (RG ou CNH, JPEG/PNG, máx. 5MB)
-        </label>
-        <div class="flex items-center space-x-4">
-          <input type="file" id="documentPhoto" name="documentPhoto" accept="image/jpeg,image/png"
-                 class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200 tooltip"
-                 aria-required="true" data-tooltip="Faça upload de uma foto do documento (JPEG ou PNG, máx. 5MB)">
-          <button type="button" id="captureDocumentPhoto" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200 tooltip" data-tooltip="Use a câmera traseira para capturar o documento">
-            Iniciar Captura
-          </button>
-        </div>
-        <video id="documentVideo" class="hidden" autoplay aria-hidden="true"></video>
-        <canvas id="documentCanvas" class="hidden" aria-hidden="true"></canvas>
-        <img id="documentPhotoPreview" class="captured-image hidden" alt="Foto do Documento" role="img" aria-label="Pré-visualização da foto do documento">
-      </div>
-      <div class="flex space-x-4">
-        <button type="button" id="clearForm" class="w-full bg-gray-500 text-white p-3 rounded-lg hover:bg-gray-600 transition duration-200 font-semibold">
-          Limpar Formulário
-        </button>
+
+      <!-- Botões de Ação -->
+      <div class="flex flex-col items-center gap-4">
         <button type="submit" id="submitButton" disabled
-                class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition duration-200 font-semibold disabled-button"
+                class="w-full max-w-md bg-blue-600 text-white py-4 rounded-xl hover:bg-cyan-500 focus:ring-4 focus:ring-blue-300 transition duration-200 text-lg font-semibold disabled-button"
                 aria-label="Enviar formulário">
-          Enviar
+          Enviar Cadastro
+        </button>
+        <button type="button" id="clearForm" class="text-blue-600 hover:text-cyan-500 font-semibold transition-colors" aria-label="Limpar formulário">
+          Limpar Formulário
         </button>
       </div>
       <div class="progress-bar" id="progressBar">
@@ -409,7 +554,7 @@
   <script>
     // Objetos para armazenar os arquivos capturados
     let facePhotoFile, documentPhotoFile;
-    let objectURLs = []; // Rastrear URLs para limpeza
+    let objectURLs = [];
 
     // Função para limpar URLs de objetos
     function cleanupObjectURLs() {
@@ -427,9 +572,11 @@
           console.log('face-api.js carregado com sucesso');
         } catch (error) {
           console.error('Erro ao carregar face-api.js:', error);
-          showToast('Não foi possível carregar o detector de rostos. Use a opção de upload.', 'error');
+          showToast('Falha ao carregar o detector de rostos. Use a opção de upload.', 'error');
+          return false;
         }
       }
+      return true;
     }
 
     // Função para exibir notificações
@@ -452,7 +599,7 @@
         brightness += (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
       }
       brightness /= (data.length / 4);
-      return brightness > 80; // Limiar para iluminação aceitável
+      return brightness > 80;
     }
 
     // Função para redimensionar imagem
@@ -555,13 +702,22 @@
     });
 
     // Verificar suporte à câmera
-    function checkCameraSupport() {
-      return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    async function checkCameraSupport() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        return false;
+      }
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        return devices.some(device => device.kind === 'videoinput');
+      } catch (error) {
+        console.error('Erro ao verificar câmeras:', error);
+        return false;
+      }
     }
 
     // Função para tocar instruções de áudio
     function playAudioInstructions() {
-      const instructions = 'Posicione seu rosto dentro do oval na tela, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto. Quando o oval ficar verde, clique no botão redondo para capturar.';
+      const instructions = 'Posicione seu rosto dentro do oval maior na tela, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto. Quando o oval ficar verde, clique no botão redondo para iniciar a contagem regressiva e capturar.';
       const utterance = new SpeechSynthesisUtterance(instructions);
       utterance.lang = 'pt-BR';
       window.speechSynthesis.speak(utterance);
@@ -569,33 +725,41 @@
 
     // Função para iniciar a captura de vídeo para rosto
     async function startFaceCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter) {
-      if (!checkCameraSupport()) {
+      if (!(await checkCameraSupport())) {
         showToast('Seu dispositivo não suporta acesso à câmera. Use a opção de upload.', 'error');
         return;
       }
 
       let stream = null;
       try {
-        // Carregar face-api.js
-        await loadFaceApi();
+        if (!(await loadFaceApi())) {
+          return;
+        }
 
-        // Iniciar stream de vídeo
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
         videoElement.srcObject = stream;
         videoElement.classList.add('fullscreen-video');
         videoElement.classList.remove('hidden');
 
-        // Criar overlay com máscara oval, instruções e feedback
         const overlay = document.createElement('div');
         overlay.className = 'face-overlay';
         const oval = document.createElement('div');
         oval.className = 'face-oval';
         const instructions = document.createElement('div');
         instructions.className = 'face-instructions';
-        instructions.textContent = 'Posicione seu rosto no oval';
+        instructions.textContent = 'Posicione seu rosto no oval maior';
         const feedback = document.createElement('div');
         feedback.className = 'face-feedback';
         feedback.setAttribute('aria-live', 'polite');
+        const countdown = document.createElement('div');
+        countdown.className = 'countdown';
+        countdown.setAttribute('aria-live', 'polite');
         const audioButton = document.createElement('button');
         audioButton.className = 'audio-button';
         audioButton.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707a1 1 0 011.414 0l4.707 4.707H20a1 1 0 011 1v4a1 1 0 01-1 1h-1.586l-4.707 4.707a1 1 0 01-1.414 0L5.586 15z"/></svg>';
@@ -604,13 +768,14 @@
         overlay.appendChild(oval);
         overlay.appendChild(instructions);
         overlay.appendChild(feedback);
+        overlay.appendChild(countdown);
         overlay.appendChild(audioButton);
         document.body.appendChild(overlay);
 
-        // Ajustar posição do oval
         function updateOvalPosition() {
           const videoRect = videoElement.getBoundingClientRect();
-          const ovalWidth = Math.min(videoRect.width * 0.5, 300);
+          const isMobile = window.innerWidth <= 640;
+          const ovalWidth = Math.min(videoRect.width * (isMobile ? 0.6 : 0.7), isMobile ? 400 : 600);
           const ovalHeight = ovalWidth * 1.3;
           oval.style.width = `${ovalWidth}px`;
           oval.style.height = `${ovalHeight}px`;
@@ -620,46 +785,49 @@
         updateOvalPosition();
         window.addEventListener('resize', updateOvalPosition);
 
-        // Detecção de rosto com timeout
         let faceDetected = false;
         let detectionTimeout = null;
         async function detectFace() {
           if (!videoElement.srcObject) return;
           try {
-            const detections = faceApiLoaded
-              ? await faceapi.detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 128 }))
-              : null;
+            const detections = await faceapi.detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({ 
+              inputSize: 224, 
+              scoreThreshold: 0.5 
+            }));
 
             if (detections) {
               const box = detections.detection.box;
               const videoRect = videoElement.getBoundingClientRect();
               const ovalRect = oval.getBoundingClientRect();
-              const isCentered = box.x > ovalRect.left - 100 && box.x + box.width < ovalRect.right + 100 &&
-                                box.y > ovalRect.top - 100 && box.y + box.height < ovalRect.bottom + 100;
+              const isCentered = box.x > ovalRect.left - 150 && box.x + box.width < ovalRect.right + 150 &&
+                                box.y > ovalRect.top - 150 && box.y + box.height < ovalRect.bottom + 150;
+              const isLargeEnough = box.width > ovalRect.width * 0.2 && box.height > ovalRect.height * 0.2;
 
-              if (isCentered && checkImageBrightness(canvasElement)) {
+              if (isCentered && isLargeEnough && checkImageBrightness(canvasElement)) {
                 faceDetected = true;
                 oval.style.borderColor = '#10b981';
                 feedback.textContent = 'Rosto detectado! Clique para capturar.';
               } else {
                 faceDetected = false;
                 oval.style.borderColor = '#ef4444';
-                feedback.textContent = isCentered ? 'Ambiente muito escuro.' : 'Centralize seu rosto no oval.';
+                feedback.textContent = !isCentered ? 'Centralize seu rosto no oval.' : 
+                                      !isLargeEnough ? 'Aproxime o rosto do oval.' : 
+                                      'Ambiente muito escuro.';
               }
             } else {
-              faceDetected = checkImageBrightness(canvasElement);
-              oval.style.borderColor = faceDetected ? '#10b981' : '#ef4444';
-              feedback.textContent = faceDetected ? 'Rosto não detectado, mas iluminação OK. Clique para capturar.' : 'Nenhum rosto detectado ou ambiente escuro.';
+              faceDetected = false;
+              oval.style.borderColor = '#ef4444';
+              feedback.textContent = 'Nenhum rosto detectado. Posicione seu rosto no oval.';
             }
           } catch (error) {
             console.error('Erro na detecção de rosto:', error);
-            faceDetected = checkImageBrightness(canvasElement);
-            oval.style.borderColor = faceDetected ? '#10b981' : '#ef4444';
-            feedback.textContent = 'Erro na detecção. Verifique a iluminação e clique para capturar.';
+            faceDetected = false;
+            oval.style.borderColor = '#ef4444';
+            feedback.textContent = 'Erro na detecção. Posicione seu rosto no oval.';
           }
 
           if (videoElement.srcObject) {
-            detectionTimeout = setTimeout(detectFace, 100);
+            detectionTimeout = setTimeout(detectFace, 200);
           }
         }
         videoElement.addEventListener('play', () => {
@@ -667,7 +835,6 @@
           detectFace();
         });
 
-        // Criar botão de captura
         const captureButton = document.createElement('button');
         captureButton.className = 'capture-button';
         captureButton.setAttribute('aria-label', 'Capturar foto');
@@ -675,97 +842,113 @@
 
         captureButton.onclick = () => {
           if (!faceDetected) {
-            showToast('Posicione seu rosto corretamente ou verifique a iluminação.', 'error');
+            showToast('Posicione seu rosto corretamente no oval.', 'error');
             return;
           }
 
-          // Capturar imagem
-          resizeImage(videoElement, canvasElement, 1280);
-          
-          // Mostrar modal de confirmação
-          canvasElement.toBlob((blob) => {
-            if (!validateFileSize(blob, 5)) {
-              showToast('A foto do rosto é muito grande. Tente novamente.', 'error');
-              return;
+          captureButton.classList.add('enabled');
+          let count = 3;
+          countdown.textContent = count;
+          const countdownInterval = setInterval(() => {
+            count--;
+            if (count > 0) {
+              countdown.textContent = count;
+              document.getElementById('liveRegion').textContent = `Capturando em ${count}`;
+            } else {
+              clearInterval(countdownInterval);
+              countdown.textContent = '';
+              document.getElementById('liveRegion').textContent = 'Foto capturada';
+              captureButton.classList.remove('enabled');
+
+              resizeImage(videoElement, canvasElement, 1280);
+              
+              canvasElement.toBlob((blob) => {
+                if (!validateFileSize(blob, 5)) {
+                  showToast('A foto do rosto é muito grande. Tente novamente.', 'error');
+                  cleanupResources();
+                  return;
+                }
+
+                const url = URL.createObjectURL(blob);
+                objectURLs.push(url);
+                const modal = document.createElement('div');
+                modal.className = 'confirmation-modal';
+                modal.setAttribute('role', 'dialog');
+                modal.setAttribute('aria-labelledby', 'modal-title');
+                modal.innerHTML = `
+                  <h2 id="modal-title" class="sr-only">Confirmar Foto do Rosto</h2>
+                  <img src="${url}" alt="Foto capturada" tabindex="0">
+                  <button class="close" aria-label="Fechar modal">×</button>
+                  <div class="buttons">
+                    <button class="retry" tabindex="0">Tentar Novamente</button>
+                    <button class="confirm" tabindex="0">Confirmar</button>
+                  </div>
+                `;
+                document.body.appendChild(modal);
+
+                const retryButton = modal.querySelector('.retry');
+                const confirmButton = modal.querySelector('.confirm');
+                const closeButton = modal.querySelector('.close');
+                const img = modal.querySelector('img');
+                img.focus();
+
+                img.addEventListener('keydown', (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') confirmButton.click();
+                  if (e.key === 'Escape') closeButton.click();
+                });
+                retryButton.addEventListener('keydown', (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') retryButton.click();
+                });
+                confirmButton.addEventListener('keydown', (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') confirmButton.click();
+                });
+                closeButton.addEventListener('keydown', (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') closeButton.click();
+                });
+
+                img.addEventListener('click', () => {
+                  img.classList.toggle('zoomed');
+                });
+
+                function cleanupResources() {
+                  stream.getTracks().forEach(track => track.stop());
+                  videoElement.srcObject = null;
+                  videoElement.classList.add('hidden');
+                  videoElement.classList.remove('fullscreen-video');
+                  captureButton.remove();
+                  overlay.remove();
+                  modal.remove();
+                  clearTimeout(detectionTimeout);
+                  window.removeEventListener('resize', updateOvalPosition);
+                }
+
+                retryButton.onclick = () => {
+                  cleanupResources();
+                  cleanupObjectURLs();
+                };
+                confirmButton.onclick = () => {
+                  const file = new File([blob], 'face-photo.jpg', { type: 'image/jpeg' });
+                  fileSetter.value = file;
+                  cleanupObjectURLs();
+                  const newUrl = URL.createObjectURL(file);
+                  objectURLs.push(newUrl);
+                  previewElement.src = newUrl;
+                  previewElement.classList.remove('hidden');
+                  
+                  cleanupResources();
+                  buttonElement.textContent = 'Tirar Novamente';
+                  buttonElement.setAttribute('aria-label', 'Tirar nova foto');
+                  buttonElement.onclick = () => startFaceCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter);
+                  
+                  checkFormValidity();
+                };
+                closeButton.onclick = () => {
+                  cleanupResources();
+                  cleanupObjectURLs();
+                };
+              }, 'image/jpeg', 0.95);
             }
-
-            const url = URL.createObjectURL(blob);
-            objectURLs.push(url);
-            const modal = document.createElement('div');
-            modal.className = 'confirmation-modal';
-            modal.setAttribute('role', 'dialog');
-            modal.setAttribute('aria-labelledby', 'modal-title');
-            modal.innerHTML = `
-              <h2 id="modal-title" class="sr-only">Confirmar Foto do Rosto</h2>
-              <img src="${url}" alt="Foto capturada" tabindex="0">
-              <button class="close" aria-label="Fechar modal">×</button>
-              <div class="buttons">
-                <button class="retry" tabindex="0">Tentar Novamente</button>
-                <button class="confirm" tabindex="0">Confirmar</button>
-              </div>
-            `;
-            document.body.appendChild(modal);
-
-            // Suporte a teclado
-            const retryButton = modal.querySelector('.retry');
-            const confirmButton = modal.querySelector('.confirm');
-            const closeButton = modal.querySelector('.close');
-            const img = modal.querySelector('img');
-            img.focus();
-
-            img.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ' ') confirmButton.click();
-              if (e.key === 'Escape') closeButton.click();
-            });
-            retryButton.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ' ') retryButton.click();
-            });
-            confirmButton.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ' ') confirmButton.click();
-            });
-            closeButton.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ' ') closeButton.click();
-            });
-
-            // Zoom na imagem
-            img.addEventListener('click', () => {
-              img.classList.toggle('zoomed');
-            });
-
-            retryButton.onclick = () => {
-              modal.remove();
-              cleanupObjectURLs();
-            };
-            confirmButton.onclick = () => {
-              const file = new File([blob], 'face-photo.jpg', { type: 'image/jpeg' });
-              fileSetter.value = file;
-              cleanupObjectURLs();
-              const newUrl = URL.createObjectURL(file);
-              objectURLs.push(newUrl);
-              previewElement.src = newUrl;
-              previewElement.classList.remove('hidden');
-              
-              // Parar a câmera e limpar
-              stream.getTracks().forEach(track => track.stop());
-              videoElement.srcObject = null;
-              videoElement.classList.add('hidden');
-              videoElement.classList.remove('fullscreen-video');
-              captureButton.remove();
-              overlay.remove();
-              modal.remove();
-              clearTimeout(detectionTimeout);
-              buttonElement.textContent = 'Tirar Novamente';
-              buttonElement.setAttribute('aria-label', 'Tirar nova foto');
-              buttonElement.onclick = () => startFaceCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter);
-              window.removeEventListener('resize', updateOvalPosition);
-              
-              checkFormValidity();
-            };
-            closeButton.onclick = () => {
-              modal.remove();
-              cleanupObjectURLs();
-            };
-          }, 'image/jpeg', 0.95); // Qualidade 95% para evitar arquivos grandes
+          }, 1000);
         };
       } catch (error) {
         let message = 'Erro ao acessar a câmera. Verifique as permissões ou use a opção de upload.';
@@ -773,6 +956,8 @@
           message = 'Permissão de câmera negada. Habilite a câmera nas configurações do navegador.';
         } else if (error.name === 'NotFoundError') {
           message = 'Nenhuma câmera encontrada. Use a opção de upload.';
+        } else if (error.name === 'OverconstrainedError') {
+          message = 'Câmera frontal não disponível. Tente usar a opção de upload.';
         }
         showToast(message, 'error');
         console.error('Erro na câmera:', error);
@@ -796,7 +981,7 @@
 
     // Configurar captura para foto do documento
     async function startDocumentCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter) {
-      if (!checkCameraSupport()) {
+      if (!(await checkCameraSupport())) {
         showToast('Seu dispositivo não suporta acesso à câmera.', 'error');
         return;
       }
@@ -840,7 +1025,7 @@
             buttonElement.onclick = () => startDocumentCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter);
             
             checkFormValidity();
-          }, 'image/jpeg', 0.95); // Qualidade 95%
+          }, 'image/jpeg', 0.95);
         };
       } catch (error) {
         let message = 'Erro ao acessar a câmera. Verifique as permissões ou use um dispositivo com câmera.';
@@ -848,6 +1033,8 @@
           message = 'Permissão de câmera negada. Habilite a câmera nas configurações do navegador.';
         } else if (error.name === 'NotFoundError') {
           message = 'Nenhuma câmera encontrada. Use a opção de upload.';
+        } else if (error.name === 'OverconstrainedError') {
+          message = 'Câmera traseira não disponível. Tente usar a opção de upload.';
         }
         showToast(message, 'error');
         console.error('Erro na câmera:', error);
@@ -905,6 +1092,14 @@
       cleanupObjectURLs();
       checkFormValidity();
       showToast('Formulário limpo.', 'success');
+    });
+
+    // Toggle da seção de ajuda
+    document.getElementById('toggleHelp').addEventListener('click', () => {
+      const helpSection = document.getElementById('helpSection');
+      const isExpanded = helpSection.classList.toggle('collapsed');
+      document.getElementById('toggleHelp').setAttribute('aria-expanded', !isExpanded);
+      document.getElementById('liveRegion').textContent = isExpanded ? 'Seção de ajuda colapsada' : 'Seção de ajuda expandida';
     });
 
     // Submissão do formulário
@@ -989,7 +1184,7 @@
           throw new Error(result.message || 'Erro ao enviar os dados.');
         }
       } catch (error) {
-        showToast(error.message.includes('timeout') ? 'Tempo de envio esgotado. Verifique sua conexão.' : 'Erro ao enviar os dados. Tente novamente.', 'error');
+        showToast(error.message.includes('timeout') ? 'Tempo de envio esgotado. Verifique sua conexão.' : 'Erro ao enviar os dados.', 'error');
         console.error('Erro na submissão:', error);
       } finally {
         submitButton.classList.remove('loading');
