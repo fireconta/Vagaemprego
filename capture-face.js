@@ -17,19 +17,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   let faceDetected = false;
   let countdownInterval = null;
 
-  // Carregar modelos do face-api.js
+  // Carregar modelos do face-api.js localmente
   modelLoading.classList.remove('hidden');
   try {
     await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'),
-      faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'),
+      faceapi.nets.tinyFaceDetector.loadFromUri('/weights'),
+      faceapi.nets.faceLandmark68Net.loadFromUri('/weights'),
     ]);
     modelLoading.classList.add('hidden');
+    showToast('Modelos carregados com sucesso!', 'success');
     startFaceCapture();
   } catch (error) {
-    showToast('Erro ao carregar os modelos de detecção facial.', 'error');
     modelLoading.classList.add('hidden');
-    console.error(error);
+    showToast('Erro ao carregar os modelos de detecção facial. Verifique se os arquivos de pesos estão na pasta /weights.', 'error');
+    console.error('Erro ao carregar modelos:', error);
+    return; // Interrompe a execução se os modelos não carregarem
   }
 
   async function startFaceCapture() {
@@ -97,16 +99,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             clearInterval(detectionInterval);
             startCountdown();
           } else {
-            showToast('Posicione o rosto corretamente antes de capturar.', 'Ovalide a posição do rosto antes de continuar.');
+            showToast('Posicione o rosto corretamente antes de capturar.', 'error');
           }
         });
       });
 
       // Contagem regressiva
       function startCountdown() {
-        let countdown = 2;
+        let countdown = 3;
         countdownElement.textContent = countdown;
-        countdownElement.classList.remove('countdown');
+        countdownElement.classList.remove('hidden');
         captureButton.classList.add('disabled');
 
         countdownInterval = setInterval(() => {
@@ -119,7 +121,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             captureFace();
           }
         }, 1000);
-
       }
 
       // Capturar foto
@@ -132,7 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         confirmationModal.classList.remove('hidden');
         stopStream();
         faceVideo.classList.add('hidden');
-        faceOverlay.classList.add('hidden');
+        faceOverlay.innerHTML = '';
         faceInstructions.classList.add('hidden');
         faceFeedback.classList.add('hidden');
         captureButton.remove();
@@ -152,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = returnPage;
       });
 
-      closeModal.addEventListener('click', () => {
+      closeModalButton.addEventListener('click', () => {
         confirmationModal.classList.add('hidden');
         startFaceCapture();
       });
@@ -162,14 +163,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     } catch (error) {
       showToast('Erro ao acessar a câmera. Verifique as permissões.', 'error');
-      console.error(error);
+      console.error('Erro na captura:', error);
     }
   }
 
   // Funções auxiliares
   function showToast(message, type) {
     toast.textContent = message;
-    toast.classList.add(`toast-${type}`);
+    toast.className = `toast toast-${type}`;
     toast.classList.remove('hidden');
     setTimeout(() => {
       toast.classList.add('hidden');
