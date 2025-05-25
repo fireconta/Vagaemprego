@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Calcular nitidez (região central)
+  // Calcular nitidez (região central do rosto)
   function calculateSharpness(canvas, ctx, box) {
     const regionSize = Math.min(box.width, box.height) * 0.5;
     const x = box.x + box.width / 2 - regionSize / 2;
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               const landmarks = detections[0].landmarks;
               const nose = landmarks.getNose()[0];
 
-              // Verificar alinhamento com oval central
+              // Verificar alinhamento com o centro da tela
               const videoWidth = faceVideo.videoWidth;
               const videoHeight = faceVideo.videoHeight;
               const centerX = videoWidth / 2;
@@ -132,11 +132,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 faceFeedback.innerHTML = '✅ Rosto alinhado! Verificando nitidez...';
                 faceFeedback.classList.remove('hidden');
 
-                // Verificar nitidez na região do rosto
+                // Verificar nitidez
                 tempCtx.drawImage(faceVideo, 0, 0);
                 const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-                if (sharpness > 70 && Date.now() - lastCaptureTime > 5000) { // Limiar e cooldown
+                if (sharpness > 70 && Date.now() - lastCaptureTime > 5000) {
                   faceFeedback.innerHTML = '📸 Imagem nítida! Capturando...';
                   isCapturing = true;
                   clearInterval(detectionInterval);
@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               faceFeedback.classList.remove('hidden');
             }
           }
-        }, 250); // Intervalo otimizado
+        }, 250);
       });
     } catch (error) {
       showToast('Erro ao acessar a câmera. Verifique permissões ou conecte um dispositivo.', 'error');
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const imageData = faceCanvas.toDataURL('image/jpeg', 0.9);
     confirmationImage.src = imageData;
     confirmationModal.classList.remove('hidden');
-    ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height); // Limpar canvas
+    ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height);
     stopStream();
     faceInstructions.classList.add('hidden');
     faceFeedback.classList.add('hidden');
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Modal
   retakeButton.addEventListener('click', () => {
     confirmationModal.classList.add('hidden');
-    confirmationImage.src = ''; // Limpar imagem
+    confirmationImage.src = '';
     faceVideo.classList.remove('hidden');
     startFaceCapture();
   });
