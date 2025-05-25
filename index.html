@@ -162,12 +162,17 @@
       justify-content: center;
       z-index: 1003;
     }
-    .fullscreen-preview img, .confirmation-modal img {
-      max-width: 90%;
-      max-height: 90%;
+    .confirmation-modal img {
+      max-width: 80%;
+      max-height: 80%;
       border-radius: 8px;
+      cursor: zoom-in;
+      transition: transform 0.3s;
     }
-    .fullscreen-preview button, .confirmation-modal button {
+    .confirmation-modal img.zoomed {
+      transform: scale(1.5);
+    }
+    .fullscreen-preview button, .confirmation-modal button.close {
       position: absolute;
       top: 20px;
       right: 20px;
@@ -192,9 +197,16 @@
       border-radius: 8px;
       padding: 8px 16px;
       font-size: 16px;
+      transition: background 0.2s;
+    }
+    .confirmation-modal .buttons button:hover {
+      background: #2563eb;
     }
     .confirmation-modal .buttons button.confirm {
       background: #10b981;
+    }
+    .confirmation-modal .buttons button.confirm:hover {
+      background: #059669;
     }
     .progress-bar {
       width: 100%;
@@ -224,6 +236,7 @@
       border: 3px dashed #10b981;
       border-radius: 50%;
       animation: pulse 2s infinite;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
     }
     @keyframes pulse {
       0% { border-color: #10b981; }
@@ -237,19 +250,41 @@
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.7);
       color: white;
-      padding: 8px 16px;
+      padding: 12px 24px;
       border-radius: 8px;
       font-size: 16px;
       z-index: 1001;
+      animation: slideDown 0.5s ease-out;
+    }
+    @keyframes slideDown {
+      from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
     }
     .face-feedback {
       position: fixed;
       bottom: 120px;
       left: 50%;
       transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.7);
       color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
       font-size: 14px;
       z-index: 1001;
+    }
+    .audio-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #6b7280;
+      color: white;
+      padding: 8px;
+      border-radius: 50%;
+      z-index: 1001;
+      cursor: pointer;
+    }
+    .audio-button:hover {
+      background: #4b5563;
     }
   </style>
 </head>
@@ -266,7 +301,7 @@
         Como Tirar as Fotos
       </h2>
       <ul class="list-disc pl-5 text-sm text-gray-600 space-y-2">
-        <li><strong>Foto do Rosto</strong>: Posicione seu rosto dentro do oval exibido na tela, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto. Siga as instruções na tela para capturar.</li>
+        <li><strong>Foto do Rosto</strong>: Posicione seu rosto dentro do oval na tela, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto. Siga as instruções na tela e confirme a foto capturada.</li>
         <li><strong>Foto do Documento</strong>: Coloque o documento (RG ou CNH) sobre uma superfície plana, em um local bem iluminado, e capture a imagem de forma que todo o documento seja legível. Você também pode fazer upload de uma foto existente (JPEG ou PNG).</li>
         <li><strong>Dicas Gerais</strong>: Use a câmera frontal (rosto) ou traseira (documento). Certifique-se de que a imagem esteja nítida e sem sombras. Clique no botão redondo para capturar.</li>
       </ul>
@@ -328,9 +363,7 @@
           <button type="button" id="captureFacePhoto" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200 tooltip" data-tooltip="Use a câmera frontal para capturar seu rosto">
             Iniciar Captura
           </button>
-          <button type="button" id="uploadFacePhoto" class="mt-1 bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition duration-200 tooltip" data-tooltip="Faça upload de uma foto do rosto (JPEG ou PNG, máx. 5MB)">
-            Fazer Upload
-          </button>
+          <input type="file" id="uploadFacePhoto" name="uploadFacePhoto" accept="image/jpeg,image/png" class="mt-1 block p-3 border border-gray-300 rounded-lg bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200 tooltip" data-tooltip="Faça upload de uma foto do rosto (JPEG ou PNG, máx. 5MB)">
         </div>
         <video id="faceVideo" class="hidden" autoplay aria-hidden="true"></video>
         <canvas id="faceCanvas" class="hidden" aria-hidden="true"></canvas>
@@ -370,21 +403,32 @@
       </div>
     </form>
     <div id="toastContainer"></div>
+    <div id="liveRegion" aria-live="polite" class="sr-only"></div>
   </div>
 
   <script>
     // Objetos para armazenar os arquivos capturados
     let facePhotoFile, documentPhotoFile;
+    let objectURLs = []; // Rastrear URLs para limpeza
+
+    // Função para limpar URLs de objetos
+    function cleanupObjectURLs() {
+      objectURLs.forEach(url => URL.revokeObjectURL(url));
+      objectURLs = [];
+    }
 
     // Carregar modelos do face-api.js
     let faceApiLoaded = false;
     async function loadFaceApi() {
       if (!faceApiLoaded) {
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights'),
-          faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights')
-        ]);
-        faceApiLoaded = true;
+        try {
+          await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights');
+          faceApiLoaded = true;
+          console.log('face-api.js carregado com sucesso');
+        } catch (error) {
+          console.error('Erro ao carregar face-api.js:', error);
+          showToast('Não foi possível carregar o detector de rostos. Use a opção de upload.', 'error');
+        }
       }
     }
 
@@ -394,6 +438,7 @@
       toast.className = `toast toast-${type}`;
       toast.textContent = message;
       document.getElementById('toastContainer').appendChild(toast);
+      document.getElementById('liveRegion').textContent = message;
       setTimeout(() => toast.remove(), 3000);
     }
 
@@ -479,15 +524,15 @@
           event.target.value = '';
         } else {
           documentPhotoFile = file;
+          cleanupObjectURLs();
           const url = URL.createObjectURL(file);
+          objectURLs.push(url);
           document.getElementById('documentPhotoPreview').src = url;
           document.getElementById('documentPhotoPreview').classList.remove('hidden');
         }
       }
       checkFormValidity();
     });
-
-    // Upload da foto do rosto
     document.getElementById('uploadFacePhoto').addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (file) {
@@ -499,7 +544,9 @@
           event.target.value = '';
         } else {
           facePhotoFile = file;
+          cleanupObjectURLs();
           const url = URL.createObjectURL(file);
+          objectURLs.push(url);
           document.getElementById('facePhotoPreview').src = url;
           document.getElementById('facePhotoPreview').classList.remove('hidden');
         }
@@ -512,6 +559,14 @@
       return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
     }
 
+    // Função para tocar instruções de áudio
+    function playAudioInstructions() {
+      const instructions = 'Posicione seu rosto dentro do oval na tela, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto. Quando o oval ficar verde, clique no botão redondo para capturar.';
+      const utterance = new SpeechSynthesisUtterance(instructions);
+      utterance.lang = 'pt-BR';
+      window.speechSynthesis.speak(utterance);
+    }
+
     // Função para iniciar a captura de vídeo para rosto
     async function startFaceCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter) {
       if (!checkCameraSupport()) {
@@ -519,14 +574,18 @@
         return;
       }
 
+      let stream = null;
       try {
+        // Carregar face-api.js
         await loadFaceApi();
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+
+        // Iniciar stream de vídeo
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
         videoElement.srcObject = stream;
         videoElement.classList.add('fullscreen-video');
         videoElement.classList.remove('hidden');
 
-        // Criar overlay com máscara oval e instruções
+        // Criar overlay com máscara oval, instruções e feedback
         const overlay = document.createElement('div');
         overlay.className = 'face-overlay';
         const oval = document.createElement('div');
@@ -536,52 +595,72 @@
         instructions.textContent = 'Posicione seu rosto no oval';
         const feedback = document.createElement('div');
         feedback.className = 'face-feedback';
+        feedback.setAttribute('aria-live', 'polite');
+        const audioButton = document.createElement('button');
+        audioButton.className = 'audio-button';
+        audioButton.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707a1 1 0 011.414 0l4.707 4.707H20a1 1 0 011 1v4a1 1 0 01-1 1h-1.586l-4.707 4.707a1 1 0 01-1.414 0L5.586 15z"/></svg>';
+        audioButton.setAttribute('aria-label', 'Tocar instruções de áudio');
+        audioButton.onclick = playAudioInstructions;
         overlay.appendChild(oval);
         overlay.appendChild(instructions);
         overlay.appendChild(feedback);
+        overlay.appendChild(audioButton);
         document.body.appendChild(overlay);
 
         // Ajustar posição do oval
         function updateOvalPosition() {
           const videoRect = videoElement.getBoundingClientRect();
-          const ovalSize = Math.min(videoRect.width * 0.4, videoRect.height * 0.5);
-          oval.style.width = `${ovalSize}px`;
-          oval.style.height = `${ovalSize * 1.3}px`;
-          oval.style.left = `${videoRect.width / 2 - ovalSize / 2}px`;
-          oval.style.top = `${videoRect.height / 2 - (ovalSize * 1.3) / 2}px`;
+          const ovalWidth = Math.min(videoRect.width * 0.5, 300);
+          const ovalHeight = ovalWidth * 1.3;
+          oval.style.width = `${ovalWidth}px`;
+          oval.style.height = `${ovalHeight}px`;
+          oval.style.left = `${videoRect.left + videoRect.width / 2 - ovalWidth / 2}px`;
+          oval.style.top = `${videoRect.top + videoRect.height / 2 - ovalHeight / 2}px`;
         }
         updateOvalPosition();
         window.addEventListener('resize', updateOvalPosition);
 
-        // Detecção de rosto em tempo real
+        // Detecção de rosto com timeout
         let faceDetected = false;
+        let detectionTimeout = null;
         async function detectFace() {
           if (!videoElement.srcObject) return;
-          const detections = await faceapi.detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks();
-          
-          if (detections) {
-            const box = detections.detection.box;
-            const videoRect = videoElement.getBoundingClientRect();
-            const ovalRect = oval.getBoundingClientRect();
-            const isCentered = box.x > ovalRect.left - 50 && box.x + box.width < ovalRect.right + 50 &&
-                              box.y > ovalRect.top - 50 && box.y + box.height < ovalRect.bottom + 50;
-            
-            if (isCentered && checkImageBrightness(canvasElement)) {
-              faceDetected = true;
-              oval.style.borderColor = '#10b981';
-              feedback.textContent = 'Rosto detectado! Clique para capturar.';
+          try {
+            const detections = faceApiLoaded
+              ? await faceapi.detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 128 }))
+              : null;
+
+            if (detections) {
+              const box = detections.detection.box;
+              const videoRect = videoElement.getBoundingClientRect();
+              const ovalRect = oval.getBoundingClientRect();
+              const isCentered = box.x > ovalRect.left - 100 && box.x + box.width < ovalRect.right + 100 &&
+                                box.y > ovalRect.top - 100 && box.y + box.height < ovalRect.bottom + 100;
+
+              if (isCentered && checkImageBrightness(canvasElement)) {
+                faceDetected = true;
+                oval.style.borderColor = '#10b981';
+                feedback.textContent = 'Rosto detectado! Clique para capturar.';
+              } else {
+                faceDetected = false;
+                oval.style.borderColor = '#ef4444';
+                feedback.textContent = isCentered ? 'Ambiente muito escuro.' : 'Centralize seu rosto no oval.';
+              }
             } else {
-              faceDetected = false;
-              oval.style.borderColor = '#ef4444';
-              feedback.textContent = isCentered ? 'Ambiente muito escuro.' : 'Centralize seu rosto no oval.';
+              faceDetected = checkImageBrightness(canvasElement);
+              oval.style.borderColor = faceDetected ? '#10b981' : '#ef4444';
+              feedback.textContent = faceDetected ? 'Rosto não detectado, mas iluminação OK. Clique para capturar.' : 'Nenhum rosto detectado ou ambiente escuro.';
             }
-          } else {
-            faceDetected = false;
-            oval.style.borderColor = '#ef4444';
-            feedback.textContent = 'Nenhum rosto detectado.';
+          } catch (error) {
+            console.error('Erro na detecção de rosto:', error);
+            faceDetected = checkImageBrightness(canvasElement);
+            oval.style.borderColor = faceDetected ? '#10b981' : '#ef4444';
+            feedback.textContent = 'Erro na detecção. Verifique a iluminação e clique para capturar.';
           }
-          if (videoElement.srcObject) requestAnimationFrame(detectFace);
+
+          if (videoElement.srcObject) {
+            detectionTimeout = setTimeout(detectFace, 100);
+          }
         }
         videoElement.addEventListener('play', () => {
           resizeImage(videoElement, canvasElement);
@@ -596,7 +675,7 @@
 
         captureButton.onclick = () => {
           if (!faceDetected) {
-            showToast('Posicione seu rosto corretamente antes de capturar.', 'error');
+            showToast('Posicione seu rosto corretamente ou verifique a iluminação.', 'error');
             return;
           }
 
@@ -605,36 +684,76 @@
           
           // Mostrar modal de confirmação
           canvasElement.toBlob((blob) => {
+            if (!validateFileSize(blob, 5)) {
+              showToast('A foto do rosto é muito grande. Tente novamente.', 'error');
+              return;
+            }
+
             const url = URL.createObjectURL(blob);
+            objectURLs.push(url);
             const modal = document.createElement('div');
             modal.className = 'confirmation-modal';
+            modal.setAttribute('role', 'dialog');
+            modal.setAttribute('aria-labelledby', 'modal-title');
             modal.innerHTML = `
-              <img src="${url}" alt="Foto capturada">
-              <button aria-label="Fechar modal">×</button>
+              <h2 id="modal-title" class="sr-only">Confirmar Foto do Rosto</h2>
+              <img src="${url}" alt="Foto capturada" tabindex="0">
+              <button class="close" aria-label="Fechar modal">×</button>
               <div class="buttons">
-                <button class="retry">Tentar Novamente</button>
-                <button class="confirm">Confirmar</button>
+                <button class="retry" tabindex="0">Tentar Novamente</button>
+                <button class="confirm" tabindex="0">Confirmar</button>
               </div>
             `;
             document.body.appendChild(modal);
 
-            modal.querySelector('.retry').onclick = () => {
+            // Suporte a teclado
+            const retryButton = modal.querySelector('.retry');
+            const confirmButton = modal.querySelector('.confirm');
+            const closeButton = modal.querySelector('.close');
+            const img = modal.querySelector('img');
+            img.focus();
+
+            img.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') confirmButton.click();
+              if (e.key === 'Escape') closeButton.click();
+            });
+            retryButton.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') retryButton.click();
+            });
+            confirmButton.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') confirmButton.click();
+            });
+            closeButton.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') closeButton.click();
+            });
+
+            // Zoom na imagem
+            img.addEventListener('click', () => {
+              img.classList.toggle('zoomed');
+            });
+
+            retryButton.onclick = () => {
               modal.remove();
-              URL.revokeObjectURL(url);
+              cleanupObjectURLs();
             };
-            modal.querySelector('.confirm').onclick = () => {
+            confirmButton.onclick = () => {
               const file = new File([blob], 'face-photo.jpg', { type: 'image/jpeg' });
               fileSetter.value = file;
-              previewElement.src = url;
+              cleanupObjectURLs();
+              const newUrl = URL.createObjectURL(file);
+              objectURLs.push(newUrl);
+              previewElement.src = newUrl;
               previewElement.classList.remove('hidden');
               
               // Parar a câmera e limpar
               stream.getTracks().forEach(track => track.stop());
+              videoElement.srcObject = null;
               videoElement.classList.add('hidden');
               videoElement.classList.remove('fullscreen-video');
               captureButton.remove();
               overlay.remove();
               modal.remove();
+              clearTimeout(detectionTimeout);
               buttonElement.textContent = 'Tirar Novamente';
               buttonElement.setAttribute('aria-label', 'Tirar nova foto');
               buttonElement.onclick = () => startFaceCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter);
@@ -642,14 +761,25 @@
               
               checkFormValidity();
             };
-            modal.querySelector('button[aria-label="Fechar modal"]').onclick = () => {
+            closeButton.onclick = () => {
               modal.remove();
-              URL.revokeObjectURL(url);
+              cleanupObjectURLs();
             };
-          }, 'image/jpeg', 1.0); // Qualidade 100%
+          }, 'image/jpeg', 0.95); // Qualidade 95% para evitar arquivos grandes
         };
       } catch (error) {
-        showToast('Erro ao acessar a câmera. Verifique as permissões ou use a opção de upload.', 'error');
+        let message = 'Erro ao acessar a câmera. Verifique as permissões ou use a opção de upload.';
+        if (error.name === 'NotAllowedError') {
+          message = 'Permissão de câmera negada. Habilite a câmera nas configurações do navegador.';
+        } else if (error.name === 'NotFoundError') {
+          message = 'Nenhuma câmera encontrada. Use a opção de upload.';
+        }
+        showToast(message, 'error');
+        console.error('Erro na câmera:', error);
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          videoElement.srcObject = null;
+        }
       }
     }
 
@@ -671,8 +801,9 @@
         return;
       }
 
+      let stream = null;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
         videoElement.srcObject = stream;
         videoElement.classList.add('fullscreen-video');
         videoElement.classList.remove('hidden');
@@ -686,14 +817,21 @@
           resizeImage(videoElement, canvasElement, 1280);
           
           canvasElement.toBlob((blob) => {
+            if (!validateFileSize(blob, 5)) {
+              showToast('A foto do documento é muito grande. Tente novamente.', 'error');
+              return;
+            }
+
             const file = new File([blob], 'document-photo.jpg', { type: 'image/jpeg' });
             fileSetter.value = file;
-            
-            const url = URL.createObjectURL(blob);
+            cleanupObjectURLs();
+            const url = URL.createObjectURL(file);
+            objectURLs.push(url);
             previewElement.src = url;
             previewElement.classList.remove('hidden');
             
             stream.getTracks().forEach(track => track.stop());
+            videoElement.srcObject = null;
             videoElement.classList.add('hidden');
             videoElement.classList.remove('fullscreen-video');
             captureButton.remove();
@@ -702,10 +840,21 @@
             buttonElement.onclick = () => startDocumentCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter);
             
             checkFormValidity();
-          }, 'image/jpeg', 1.0); // Qualidade 100%
+          }, 'image/jpeg', 0.95); // Qualidade 95%
         };
       } catch (error) {
-        showToast('Erro ao acessar a câmera. Verifique as permissões ou use um dispositivo com câmera.', 'error');
+        let message = 'Erro ao acessar a câmera. Verifique as permissões ou use um dispositivo com câmera.';
+        if (error.name === 'NotAllowedError') {
+          message = 'Permissão de câmera negada. Habilite a câmera nas configurações do navegador.';
+        } else if (error.name === 'NotFoundError') {
+          message = 'Nenhuma câmera encontrada. Use a opção de upload.';
+        }
+        showToast(message, 'error');
+        console.error('Erro na câmera:', error);
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          videoElement.srcObject = null;
+        }
       }
     }
 
@@ -728,7 +877,10 @@
         <button aria-label="Fechar visualização">×</button>
       `;
       document.body.appendChild(preview);
-      preview.querySelector('button').onclick = () => preview.remove();
+      preview.querySelector('button').onclick = () => {
+        preview.remove();
+        cleanupObjectURLs();
+      };
     }
 
     document.querySelectorAll('.captured-image').forEach(img => {
@@ -750,6 +902,7 @@
         btn.setAttribute('aria-label', 'Iniciar captura de foto');
       });
       document.querySelectorAll('input, img.captured-image').forEach(el => el.classList.remove('error-field'));
+      cleanupObjectURLs();
       checkFormValidity();
       showToast('Formulário limpo.', 'success');
     });
@@ -831,11 +984,13 @@
             btn.setAttribute('aria-label', 'Iniciar captura de foto');
           });
           document.querySelectorAll('input, img.captured-image').forEach(el => el.classList.remove('error-field'));
+          cleanupObjectURLs();
         } else {
           throw new Error(result.message || 'Erro ao enviar os dados.');
         }
       } catch (error) {
         showToast(error.message.includes('timeout') ? 'Tempo de envio esgotado. Verifique sua conexão.' : 'Erro ao enviar os dados. Tente novamente.', 'error');
+        console.error('Erro na submissão:', error);
       } finally {
         submitButton.classList.remove('loading');
         progressBar.style.display = 'none';
