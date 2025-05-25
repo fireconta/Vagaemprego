@@ -17,21 +17,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   let faceDetected = false;
   let countdownInterval = null;
 
-  // Carregar modelos do face-api.js localmente
+  // Função para carregar modelos com fallback para diferentes caminhos
+  async function loadModels() {
+    const paths = ['./weights', '/weights']; // Tenta caminhos relativo e absoluto
+    for (const path of paths) {
+      try {
+        console.log(`Tentando carregar modelos de: ${path}`);
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(path),
+          faceapi.nets.faceLandmark68Net.loadFromUri(path),
+        ]);
+        console.log(`Modelos carregados com sucesso de: ${path}`);
+        showToast('Modelos carregados com sucesso!', 'success');
+        return true;
+      } catch (error) {
+        console.error(`Erro ao carregar modelos de ${path}:`, error);
+      }
+    }
+    throw new Error('Falha ao carregar modelos de todos os caminhos tentados.');
+  }
+
+  // Carregar modelos
   modelLoading.classList.remove('hidden');
   try {
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri('/weights'),
-      faceapi.nets.faceLandmark68Net.loadFromUri('/weights'),
-    ]);
+    await loadModels();
     modelLoading.classList.add('hidden');
-    showToast('Modelos carregados com sucesso!', 'success');
     startFaceCapture();
   } catch (error) {
     modelLoading.classList.add('hidden');
-    showToast('Erro ao carregar os modelos de detecção facial. Verifique se os arquivos de pesos estão na pasta /weights.', 'error');
-    console.error('Erro ao carregar modelos:', error);
-    return; // Interrompe a execução se os modelos não carregarem
+    showToast('Erro ao carregar os modelos de detecção facial. Verifique os arquivos na pasta weights.', 'error');
+    console.error('Erro final ao carregar modelos:', error);
+    return;
   }
 
   async function startFaceCapture() {
