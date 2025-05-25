@@ -4,9 +4,10 @@ let faceApiLoaded = false;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 
-function cleanupObjectURLs() {
-  objectURLs.forEach(url => URL.revokeObjectURL(url));
-  objectURLs = [];
+// Função para obter a base do caminho (resolve problemas em subdiretórios, ex.: GitHub Pages)
+function getBasePath() {
+  const base = window.location.pathname.split('/').slice(0, -1).join('/');
+  return base ? `${base}/weights` : '/weights';
 }
 
 async function loadFaceApi(attempt = 1) {
@@ -17,22 +18,45 @@ async function loadFaceApi(attempt = 1) {
   document.body.appendChild(loadingIndicator);
 
   try {
-    await faceapi.nets.tinyFaceDetector.loadFromUri('/weights');
+    // Tenta carregar os pesos localmente
+    const localPath = getBasePath();
+    console.log(`Tentando carregar pesos de: ${localPath}`);
+    await faceapi.nets.tinyFaceDetector.loadFromUri(localPath);
     faceApiLoaded = true;
-    console.log('face-api.js carregado com sucesso');
+    console.log('face-api.js carregado com sucesso localmente');
     showToast('Detector de rostos pronto.', 'success');
     return true;
-  } catch (error) {
-    console.error(`Tentativa ${attempt} falhou:`, error);
-    if (attempt < MAX_RETRIES) {
-      showToast(`Tentativa ${attempt} de carregamento falhou. Retentando...`, 'error');
-      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-      return loadFaceApi(attempt + 1);
-    } else {
-      console.error('Erro final ao carregar face-api.js:', error);
-      showToast('Falha ao carregar o detector de rostos. Use a opção de upload.', 'error');
-      return false;
+  } catch (localError) {
+    console.error(`Tentativa ${attempt} falhou localmente:`, localError);
+
+    // Se todas as tentativas locais falharem, tenta o CDN
+    if (attempt >= MAX_RETRIES) {
+      console.log('Tentando fallback para CDN...');
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights');
+        faceApiLoaded = true;
+        console.log('face-api.js carregado com sucesso via CDN');
+        showToast('Detector de rostos carregado via fallback.', 'success');
+        return true;
+      } catch (cdnError) {
+        console.error('Erro ao carregar via CDN:', cdnError);
+        let errorMessage = 'Falha ao carregar o detector de rostos. Use a opção de upload.';
+        if (cdnError.message.includes('404')) {
+          errorMessage = 'Arquivos de modelo não encontrados. Verifique a pasta /weights ou a conexão.';
+        } else if (cdnError.message.includes('CORS')) {
+          errorMessage = 'Erro de CORS. Hospede o projeto em HTTPS.';
+        } else if (cdnError.message.includes('network')) {
+          errorMessage = 'Erro de rede. Verifique sua conexão e tente novamente.';
+        }
+        showToast(errorMessage, 'error');
+        return false;
+      }
     }
+
+    // Retenta localmente
+    showToast(`Tentativa ${attempt} de carregamento falhou. Retentando...`, 'error');
+    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+    return loadFaceApi(attempt + 1);
   } finally {
     loadingIndicator.remove();
   }
