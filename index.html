@@ -21,6 +21,86 @@
       background: #e0f2fe;
       border-left: 4px solid #3b82f6;
     }
+    .fullscreen-video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 1000;
+      background: black;
+    }
+    .capture-button {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1001;
+      width: 80px;
+      height: 80px;
+      background: #ef4444;
+      border: 4px solid white;
+      border-radius: 50%;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .capture-button:hover {
+      transform: translateX(-50%) scale(1.1);
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+    }
+    .capture-button:active {
+      transform: translateX(-50%) scale(0.9);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    .capture-button::before {
+      content: '';
+      width: 60px;
+      height: 60px;
+      background: white;
+      border-radius: 50%;
+    }
+    .captured-image {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin-top: 8px;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      animation: fadeIn 0.3s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .field-group {
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 1rem;
+    }
+    .error-field {
+      border-color: #ef4444 !important;
+    }
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid white;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-left: 8px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .disabled-button {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body class="flex items-center justify-center min-h-screen">
@@ -29,55 +109,68 @@
     
     <!-- Seção de Autoajuda -->
     <div class="mb-6 p-4 rounded-lg help-text">
-      <h2 class="text-lg font-semibold text-gray-800 mb-2">Como Tirar as Fotos</h2>
+      <h2 class="text-lg font-semibold text-gray-800 mb-2 flex items-center">
+        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        Como Tirar as Fotos
+      </h2>
       <ul class="list-disc pl-5 text-sm text-gray-600 space-y-2">
         <li><strong>Foto do Rosto</strong>: Posicione seu rosto no centro, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto.</li>
         <li><strong>Foto Segurando Documento</strong>: Segure seu RG ou CNH de forma visível ao lado do rosto, garantindo que o documento e seu rosto estejam nítidos.</li>
         <li><strong>Foto do Documento</strong>: Coloque o documento (RG ou CNH) sobre uma superfície plana, em um local bem iluminado, e capture a imagem de forma que todo o documento seja legível. Você também pode fazer upload de uma foto existente.</li>
-        <li><strong>Dicas Gerais</strong>: Use a câmera frontal ou traseira do dispositivo. Certifique-se de que a imagem esteja nítida e sem sombras. Clique em "Capturar" quando estiver pronto.</li>
+        <li><strong>Dicas Gerais</strong>: Use a câmera frontal (rosto e segurando documento) ou traseira (documento). Certifique-se de que a imagem esteja nítida e sem sombras. Clique no botão redondo para capturar.</li>
       </ul>
     </div>
 
     <form id="jobForm" enctype="multipart/form-data" class="space-y-6">
-      <div>
+      <div class="field-group">
         <label for="fullName" class="block text-sm font-medium text-gray-700">Nome Completo</label>
         <input type="text" id="fullName" name="fullName" required
                class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200">
       </div>
-      <div>
+      <div class="field-group">
         <label for="birthDate" class="block text-sm font-medium text-gray-700">Data de Nascimento</label>
         <input type="date" id="birthDate" name="birthDate" required
                class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200">
       </div>
-      <div>
+      <div class="field-group">
+        <label for="email" class="block text-sm font-medium text-gray-700">E-mail</label>
+        <input type="email" id="email" name="email" required
+               class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200">
+      </div>
+      <div class="field-group">
         <label for="resume" class="block text-sm font-medium text-gray-700">Currículo (PDF)</label>
         <input type="file" id="resume" name="resume" accept=".pdf" required
                class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200">
       </div>
-      <div>
+      <div class="field-group">
         <label class="block text-sm font-medium text-gray-700">Foto com Confirmação do Rosto</label>
         <button type="button" id="captureFacePhoto" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">Iniciar Captura</button>
-        <video id="faceVideo" class="mt-2 w-full rounded-lg hidden" autoplay></video>
+        <video id="faceVideo" class="hidden" autoplay></video>
         <canvas id="faceCanvas" class="hidden"></canvas>
+        <img id="facePhotoPreview" class="captured-image hidden" alt="Foto do Rosto">
       </div>
-      <div>
+      <div class="field-group">
         <label class="block text-sm font-medium text-gray-700">Foto Segurando Documento (RG ou CNH)</label>
         <button type="button" id="captureIdPhoto" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">Iniciar Captura</button>
-        <video id="idVideo" class="mt-2 w-full rounded-lg hidden" autoplay></video>
+        <video id="idVideo" class="hidden" autoplay></video>
         <canvas id="idCanvas" class="hidden"></canvas>
+        <img id="idPhotoPreview" class="captured-image hidden" alt="Foto Segurando Documento">
       </div>
-      <div>
+      <div class="field-group">
         <label class="block text-sm font-medium text-gray-700">Foto do Documento (RG ou CNH)</label>
         <div class="flex items-center space-x-4">
           <input type="file" id="documentPhoto" name="documentPhoto" accept="image/*"
                  class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200">
           <button type="button" id="captureDocumentPhoto" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">Iniciar Captura</button>
         </div>
-        <video id="documentVideo" class="mt-2 w-full rounded-lg hidden" autoplay></video>
+        <video id="documentVideo" class="hidden" autoplay></video>
         <canvas id="documentCanvas" class="hidden"></canvas>
+        <img id="documentPhotoPreview" class="captured-image hidden" alt="Foto do Documento">
       </div>
-      <button type="submit"
-              class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition duration-200 font-semibold">
+      <button type="submit" id="submitButton" disabled
+              class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition duration-200 font-semibold disabled-button">
         Enviar
       </button>
     </form>
@@ -88,33 +181,79 @@
     // Objetos para armazenar os arquivos capturados
     let facePhotoFile, idPhotoFile, documentPhotoFile;
 
-    // Função para iniciar a captura de vídeo automaticamente
-    async function startCapture(videoElement, canvasElement, buttonElement, fileSetter, facingMode = 'user') {
+    // Função para verificar se todos os campos estão preenchidos
+    function checkFormValidity() {
+      const fullName = document.getElementById('fullName').value.trim();
+      const birthDate = document.getElementById('birthDate').value;
+      const email = document.getElementById('email').value.trim();
+      const resume = document.getElementById('resume').files[0];
+      const documentPhoto = document.getElementById('documentPhoto').files[0] || documentPhotoFile;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      // Validar campos
+      const isValid = fullName && birthDate && email && emailRegex.test(email) && resume && facePhotoFile && idPhotoFile && documentPhoto;
+
+      document.getElementById('submitButton').disabled = !isValid;
+      document.getElementById('submitButton').classList.toggle('disabled-button', !isValid);
+      
+      // Adicionar/remover classe de erro
+      document.getElementById('fullName').classList.toggle('error-field', !fullName);
+      document.getElementById('birthDate').classList.toggle('error-field', !birthDate);
+      document.getElementById('email').classList.toggle('error-field', !email || !emailRegex.test(email));
+      document.getElementById('resume').classList.toggle('error-field', !resume);
+      document.getElementById('facePhotoPreview').classList.toggle('error-field', !facePhotoFile);
+      document.getElementById('idPhotoPreview').classList.toggle('error-field', !idPhotoFile);
+      document.getElementById('documentPhotoPreview').classList.toggle('error-field', !documentPhoto);
+    }
+
+    // Monitorar mudanças nos campos
+    document.getElementById('fullName').addEventListener('input', checkFormValidity);
+    document.getElementById('birthDate').addEventListener('input', checkFormValidity);
+    document.getElementById('email').addEventListener('input', checkFormValidity);
+    document.getElementById('resume').addEventListener('change', checkFormValidity);
+    document.getElementById('documentPhoto').addEventListener('change', checkFormValidity);
+
+    // Função para iniciar a captura de vídeo em tela cheia
+    async function startCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter, facingMode = 'user') {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode } });
         videoElement.srcObject = stream;
+        videoElement.classList.add('fullscreen-video');
         videoElement.classList.remove('hidden');
         
         // Ajustar tamanho do canvas
         canvasElement.width = videoElement.videoWidth || 640;
         canvasElement.height = videoElement.videoHeight || 480;
 
-        // Alterar botão para capturar
-        buttonElement.textContent = 'Capturar';
-        buttonElement.onclick = () => {
+        // Criar botão de captura dinâmico redondo
+        const captureButton = document.createElement('button');
+        captureButton.className = 'capture-button';
+        document.body.appendChild(captureButton);
+
+        captureButton.onclick = () => {
           const context = canvasElement.getContext('2d');
           context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
           
-          // Converter para arquivo
+          // Converter para arquivo e exibir preview
           canvasElement.toBlob((blob) => {
             const file = new File([blob], `${fileSetter.name}.jpg`, { type: 'image/jpeg' });
             fileSetter.value = file;
             
-            // Parar a câmera
+            // Exibir preview
+            const url = URL.createObjectURL(blob);
+            previewElement.src = url;
+            previewElement.classList.remove('hidden');
+            
+            // Parar a câmera e remover elementos
             stream.getTracks().forEach(track => track.stop());
             videoElement.classList.add('hidden');
+            videoElement.classList.remove('fullscreen-video');
+            captureButton.remove();
             buttonElement.textContent = 'Tirar Novamente';
-            buttonElement.onclick = () => startCapture(videoElement, canvasElement, buttonElement, fileSetter, facingMode);
+            buttonElement.onclick = () => startCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter, facingMode);
+            
+            // Verificar validade do formulário
+            checkFormValidity();
           }, 'image/jpeg');
         };
       } catch (error) {
@@ -129,6 +268,7 @@
         document.getElementById('faceVideo'),
         document.getElementById('faceCanvas'),
         document.getElementById('captureFacePhoto'),
+        document.getElementById('facePhotoPreview'),
         { name: 'face-photo', value: null, set value(file) { facePhotoFile = file; } },
         'user'
       );
@@ -139,6 +279,7 @@
         document.getElementById('idVideo'),
         document.getElementById('idCanvas'),
         document.getElementById('captureIdPhoto'),
+        document.getElementById('idPhotoPreview'),
         { name: 'id-photo', value: null, set value(file) { idPhotoFile = file; } },
         'user'
       );
@@ -149,24 +290,45 @@
         document.getElementById('documentVideo'),
         document.getElementById('documentCanvas'),
         document.getElementById('captureDocumentPhoto'),
+        document.getElementById('documentPhotoPreview'),
         { name: 'document-photo', value: null, set value(file) { documentPhotoFile = file; } },
-        'environment' // Usa câmera traseira para o documento
+        'environment'
       );
+    });
+
+    // Atualizar preview ao fazer upload do documento
+    document.getElementById('documentPhoto').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        documentPhotoFile = file;
+        const url = URL.createObjectURL(file);
+        document.getElementById('documentPhotoPreview').src = url;
+        document.getElementById('documentPhotoPreview').classList.remove('hidden');
+        checkFormValidity();
+      }
     });
 
     // Submissão do formulário
     document.getElementById('jobForm').addEventListener('submit', async function(event) {
       event.preventDefault();
       
-      const fullName = document.getElementById('fullName').value;
+      const submitButton = document.getElementById('submitButton');
+      submitButton.classList.add('loading');
+      submitButton.disabled = true;
+
+      const fullName = document.getElementById('fullName').value.trim();
       const birthDate = document.getElementById('birthDate').value;
+      const email = document.getElementById('email').value.trim();
       const resume = document.getElementById('resume').files[0];
       const documentPhoto = document.getElementById('documentPhoto').files[0] || documentPhotoFile;
       
-      // Validação
-      if (!fullName || !birthDate || !resume || !facePhotoFile || !idPhotoFile || !documentPhoto) {
+      // Validação final
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!fullName || !birthDate || !email || !emailRegex.test(email) || !resume || !facePhotoFile || !idPhotoFile || !documentPhoto) {
         document.getElementById('formMessage').textContent = 'Por favor, preencha todos os campos e capture/upload todas as fotos.';
         document.getElementById('formMessage').classList.add('text-red-500');
+        submitButton.classList.remove('loading');
+        submitButton.disabled = false;
         return;
       }
 
@@ -174,6 +336,8 @@
       if (resume && resume.type !== 'application/pdf') {
         document.getElementById('formMessage').textContent = 'O currículo deve ser um arquivo PDF.';
         document.getElementById('formMessage').classList.add('text-red-500');
+        submitButton.classList.remove('loading');
+        submitButton.disabled = false;
         return;
       }
 
@@ -188,7 +352,7 @@
       try {
         const facePhotoBase64 = await toBase64(facePhotoFile);
         const idPhotoBase64 = await toBase64(idPhotoFile);
-        const documentPhotoBase64 = documentPhotoFile ? await toBase64(documentPhotoFile) : '';
+        const documentPhotoBase64 = await toBase64(documentPhoto);
         const resumeBase64 = await toBase64(resume);
 
         // Enviar dados para o Google Apps Script
@@ -198,6 +362,7 @@
           body: JSON.stringify({
             fullName,
             birthDate,
+            email,
             resume: resumeBase64,
             facePhoto: facePhotoBase64,
             idPhoto: idPhotoBase64,
@@ -214,14 +379,22 @@
           // Limpar formulário
           document.getElementById('jobForm').reset();
           facePhotoFile = idPhotoFile = documentPhotoFile = null;
-          document.querySelectorAll('video').forEach(video => video.classList.add('hidden'));
+          document.querySelectorAll('img.captured-image').forEach(img => {
+            img.src = '';
+            img.classList.add('hidden');
+          });
           document.querySelectorAll('button[id^="capture"]').forEach(btn => btn.textContent = 'Iniciar Captura');
+          document.querySelectorAll('input').forEach(input => input.classList.remove('error-field'));
+          document.querySelectorAll('img.captured-image').forEach(img => img.classList.remove('error-field'));
         } else {
           throw new Error(result.message || 'Erro ao enviar os dados.');
         }
       } catch (error) {
         document.getElementById('formMessage').textContent = 'Erro ao enviar os dados. Tente novamente.';
         document.getElementById('formMessage').classList.add('text-red-500');
+      } finally {
+        submitButton.classList.remove('loading');
+        checkFormValidity();
       }
     });
   </script>
