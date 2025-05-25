@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 faceFeedback.innerHTML = '✅ Rosto alinhado...';
                 faceFeedback.classList.remove('hidden');
 
-                if (alignedFrames >= 5) { // Requer 5 quadros alinhados (~1s)
+                if (alignedFrames >= 5) {
                   tempCtx.drawImage(faceVideo, 0, 0);
                   const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
@@ -163,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Contagem regressiva
   function startCountdown() {
-    let countdown = 1; // Reduzido para 1s
+    let countdown = 1;
     countdownElement.textContent = countdown;
     countdownElement.classList.remove('hidden');
     countdownElement.style.opacity = '1';
@@ -184,7 +184,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.width = faceVideo.videoWidth;
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
-    ctx.drawImage(faceVideo, 0, 0);
+    // Inverter horizontalmente a imagem capturada
+    ctx.scale(-1, 1);
+    ctx.drawImage(faceVideo, -faceCanvas.width, 0, faceCanvas.width, faceCanvas.height);
+    ctx.scale(-1, 1); // Restaurar o contexto
     const imageData = faceCanvas.toDataURL('image/jpeg', 0.95);
     confirmationImage.src = imageData;
     confirmationModal.classList.remove('hidden');
