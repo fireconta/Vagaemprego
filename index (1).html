@@ -1,0 +1,223 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro de Vagas de Emprego</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background: linear-gradient(to bottom, #1e3a8a, #3b82f6);
+    }
+    .form-container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+    }
+    input:focus, button:focus {
+      outline: none;
+      ring: 2px solid #1e40af;
+    }
+    .help-text {
+      background: #e0f2fe;
+      border-left: 4px solid #3b82f6;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+  <div class="form-container p-10 rounded-2xl shadow-2xl w-full max-w-2xl mx-4">
+    <h1 class="text-3xl font-extrabold mb-8 text-center text-gray-800">Cadastro para Vagas de Emprego</h1>
+    
+    <!-- Seção de Autoajuda -->
+    <div class="mb-6 p-4 rounded-lg help-text">
+      <h2 class="text-lg font-semibold text-gray-800 mb-2">Como Tirar as Fotos</h2>
+      <ul class="list-disc pl-5 text-sm text-gray-600 space-y-2">
+        <li><strong>Foto do Rosto</strong>: Posicione seu rosto no centro do quadro, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto.</li>
+        <li><strong>Foto Segurando Documento</strong>: Segure seu RG ou CNH de forma visível ao lado do rosto, garantindo que o documento e seu rosto estejam nítidos.</li>
+        <li><strong>Foto do Documento</strong>: Coloque o documento (RG ou CNH) sobre uma superfície plana, em um local bem iluminado, e capture a imagem de forma que todo o documento seja legível.</li>
+        <li><strong>Dicas Gerais</strong>: Use a câmera frontal ou traseira do dispositivo. Certifique-se de que a imagem esteja nítida e sem sombras. Clique em "Capturar" quando estiver pronto.</li>
+      </ul>
+    </div>
+
+    <form id="jobForm" enctype="multipart/form-data" class="space-y-6">
+      <div>
+        <label for="fullName" class="block text-sm font-medium text-gray-700">Nome Completo</label>
+        <input type="text" id="fullName" name="fullName" required
+               class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200">
+      </div>
+      <div>
+        <label for="birthDate" class="block text-sm font-medium text-gray-700">Data de Nascimento</label>
+        <input type="date" id="birthDate" name="birthDate" required
+               class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-600 transition duration-200">
+      </div>
+      <div>
+        <label for="resume" class="block text-sm font-medium text-gray-700">Currículo (PDF)</label>
+        <input type="file" id="resume" name="resume" accept=".pdf" required
+               class="mt-1 block w-full p-3 border border-gray-300 rounded-lg bg-gray-50 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition duration-200">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Foto com Confirmação do Rosto</label>
+        <button type="button" id="captureFacePhoto" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">Iniciar Captura</button>
+        <video id="faceVideo" class="mt-2 w-full rounded-lg" autoplay></video>
+        <canvas id="faceCanvas" class="hidden"></canvas>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Foto Segurando Documento (RG ou CNH)</label>
+        <button type="button" id="captureIdPhoto" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">Iniciar Captura</button>
+        <video id="idVideo" class="mt-2 w-full rounded-lg" autoplay></video>
+        <canvas id="idCanvas" class="hidden"></canvas>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Foto do Documento (RG ou CNH)</label>
+        <button type="button" id="captureDocumentPhoto" class="mt-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">Iniciar Captura</button>
+        <video id="documentVideo" class="mt-2 w-full rounded-lg" autoplay></video>
+        <canvas id="documentCanvas" class="hidden"></canvas>
+      </div>
+      <button type="submit"
+              class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition duration-200 font-semibold">
+        Enviar
+      </button>
+    </form>
+    <p id="formMessage" class="mt-6 text-center text-sm font-medium text-gray-600"></p>
+  </div>
+
+  <script>
+    // Objetos para armazenar os arquivos capturados
+    let facePhotoFile, idPhotoFile, documentPhotoFile;
+
+    // Função para iniciar a captura de vídeo
+    async function startCapture(videoElement, canvasElement, buttonElement, fileSetter) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        videoElement.srcObject = stream;
+        videoElement.classList.remove('hidden');
+        
+        // Ajustar tamanho do canvas
+        canvasElement.width = videoElement.videoWidth || 640;
+        canvasElement.height = videoElement.videoHeight || 480;
+
+        // Alterar botão para capturar
+        buttonElement.textContent = 'Capturar';
+        buttonElement.onclick = () => {
+          const context = canvasElement.getContext('2d');
+          context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+          
+          // Converter para arquivo
+          canvasElement.toBlob((blob) => {
+            const file = new File([blob], `${fileSetter.name}.jpg`, { type: 'image/jpeg' });
+            fileSetter.value = file;
+            
+            // Parar a câmera
+            stream.getTracks().forEach(track => track.stop());
+            videoElement.classList.add('hidden');
+            buttonElement.textContent = 'Tirar Novamente';
+            buttonElement.onclick = () => startCapture(videoElement, canvasElement, buttonElement, fileSetter);
+          }, 'image/jpeg');
+        };
+      } catch (error) {
+        document.getElementById('formMessage').textContent = 'Erro ao acessar a câmera. Verifique as permissões ou use um dispositivo com câmera.';
+        document.getElementById('formMessage').classList.add('text-red-500');
+      }
+    }
+
+    // Configurar captura para cada tipo de foto
+    document.getElementById('captureFacePhoto').addEventListener('click', () => {
+      startCapture(
+        document.getElementById('faceVideo'),
+        document.getElementById('faceCanvas'),
+        document.getElementById('captureFacePhoto'),
+        { name: 'face-photo', value: null, set value(file) { facePhotoFile = file; } }
+      );
+    });
+
+    document.getElementById('captureIdPhoto').addEventListener('click', () => {
+      startCapture(
+        document.getElementById('idVideo'),
+        document.getElementById('idCanvas'),
+        document.getElementById('captureIdPhoto'),
+        { name: 'id-photo', value: null, set value(file) { idPhotoFile = file; } }
+      );
+    });
+
+    document.getElementById('captureDocumentPhoto').addEventListener('click', () => {
+      startCapture(
+        document.getElementById('documentVideo'),
+        document.getElementById('captureDocumentPhoto'),
+        { name: 'document-photo', value: null, set value(file) { documentPhotoFile = file; } }
+      );
+    });
+
+    // Submissão do formulário
+    document.getElementById('jobForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+      
+      const fullName = document.getElementById('fullName').value;
+      const birthDate = document.getElementById('birthDate').value;
+      const resume = document.getElementById('resume').files[0];
+      
+      // Validação
+      if (!fullName || !birthDate || !resume || !facePhotoFile || !idPhotoFile || !documentPhotoFile) {
+        document.getElementById('formMessage').textContent = 'Por favor, preencha todos os campos e capture todas as fotos.';
+        document.getElementById('formMessage').classList.add('text-red-500');
+        return;
+      }
+
+      // Validação do tipo de arquivo para o currículo
+      if (resume && resume.type !== 'application/pdf') {
+        document.getElementById('formMessage').textContent = 'O currículo deve ser um arquivo PDF.';
+        document.getElementById('formMessage').classList.add('text-red-500');
+        return;
+      }
+
+      // Simulação de envio
+      document.getElementById('formMessage').textContent = 'Cadastro enviado com sucesso!';
+      document.getElementById('formMessage').classList.remove('text-red-500');
+      document.getElementById('formMessage').classList.add('text-green-500');
+      
+      // Limpar formulário
+      document.getElementById('jobForm').reset();
+      facePhotoFile = idPhotoFile = documentPhotoFile = null;
+      document.querySelectorAll('video').forEach(video => video.classList.add('hidden'));
+      document.querySelectorAll('button[id^="capture"]').forEach(btn => btn.textContent = 'Iniciar Captura');
+    });
+  </script>
+</body>
+</html>
