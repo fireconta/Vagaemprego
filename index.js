@@ -1,700 +1,200 @@
-let facePhotoFile, documentPhotoFile;
-let objectURLs = [];
-let faceApiLoaded = false;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
-
-// Pré-carregar face-api.js ao iniciar
-window.addEventListener('load', () => {
-  console.log('[init] Pré-carregando face-api.js');
-  loadFaceApi();
-});
-
-function getBasePath() {
-  const base = window.location.pathname.split('/').slice(0, -1).join('/');
-  return base ? `${base}/weights` : '/weights';
-}
-
-async function loadFaceApi(attempt = 1) {
-  console.log(`[loadFaceApi] Iniciando tentativa ${attempt}`);
-  const loadingIndicator = document.createElement('div');
-  loadingIndicator.className = 'model-loading';
-  loadingIndicator.textContent = 'Carregando detector de rostos...';
-  loadingIndicator.setAttribute('aria-live', 'polite');
-  document.body.appendChild(loadingIndicator);
-
-  try {
-    const localPath = getBasePath();
-    console.log(`[loadFaceApi] Carregando de: ${localPath}`);
-    await faceapi.nets.tinyFaceDetector.loadFromUri(localPath);
-    faceApiLoaded = true;
-    console.log('[loadFaceApi] Carregado localmente');
-    showToast('Detector de rostos pronto.', 'success');
-    return true;
-  } catch (localError) {
-    console.error(`[loadFaceApi] Tentativa ${attempt} falhou:`, localError);
-    if (attempt >= MAX_RETRIES) {
-      console.log('[loadFaceApi] Tentando CDN...');
-      try {
-        await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights');
-        faceApiLoaded = true;
-        console.log('[loadFaceApi] Carregado via CDN');
-        showToast('Detector de rostos carregado via fallback.', 'success');
-        return true;
-      } catch (cdnError) {
-        console.error('[loadFaceApi] Erro no CDN:', cdnError);
-        let errorMessage = 'Falha ao carregar o detector de rostos. Use a opção de upload.';
-        if (cdnError.message.includes('404')) {
-          errorMessage = 'Arquivos de modelo não encontrados. Verifique a pasta /weights.';
-        } else if (cdnError.message.includes('CORS')) {
-          errorMessage = 'Erro de CORS. Hospede o projeto em HTTPS.';
-        } else if (cdnError.message.includes('network')) {
-          errorMessage = 'Erro de rede. Verifique sua conexão.';
-        }
-        showToast(errorMessage, 'error');
-        return false;
-      }
-    }
-    showToast(`Tentativa ${attempt} falhou. Retentando...`, 'error');
-    await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-    return loadFaceApi(attempt + 1);
-  } finally {
-    loadingIndicator.remove();
-  }
-}
-
-function showToast(message, type = 'success') {
-  console.log(`[showToast] ${message}`);
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.textContent = message;
-  document.getElementById('toastContainer').appendChild(toast);
-  document.getElementById('liveRegion').textContent = message;
-  setTimeout(() => toast.remove(), 3000);
-}
-
-function checkImageBrightness(canvas) {
-  const ctx = canvas.getContext('2d');
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const data = imageData.data;
-  let brightness = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    brightness += (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
-  }
-  brightness /= (data.length / 4);
-  return brightness >= 80;
-}
-
-function resizeImage(videoElement, canvasElement, maxWidth = 1280) {
-  const context = canvasElement.getContext('2d');
-  const width = videoElement.videoWidth;
-  const height = videoElement.videoHeight;
-  let newWidth = width;
-  let newHeight = height;
-  if (width > maxWidth) {
-    newWidth = maxWidth;
-    newHeight = (height * maxWidth) / width;
-  }
-  canvasElement.width = newWidth;
-  canvasElement.height = newHeight;
-  context.drawImage(videoElement, 0, 0, newWidth, newHeight);
-}
-
-function validateFileSize(file, maxSizeMB = 5) {
-  const maxSizeBytes = maxSizeMB * 1024 * 1024;
-  return file.size <= maxSizeBytes;
-}
-
-async function validateFaceInImage(canvas) {
-  if (!faceApiLoaded) {
-    console.log('[validateFaceInImage] face-api.js não carregado');
-    return false;
-  }
-  try {
-    const detections = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.45 }));
-    return !!detections;
-  } catch (error) {
-    console.error('[validateFaceInImage] Erro:', error);
-    return false;
-  }
-}
-
-function cleanupObjectURLs() {
-  console.log('[cleanupObjectURLs] Limpando', objectURLs.length, 'URLs');
-  objectURLs.forEach(url => URL.revokeObjectURL(url));
-  objectURLs = [];
-}
-
-function checkFormValidity() {
-  const fullName = document.getElementById('fullName').value.trim();
-  const birthDate = document.getElementById('birthDate').value;
-  const email = document.getElementById('email').value.trim();
-  const resume = document.getElementById('resume').files[0];
-  const documentPhoto = document.getElementById('documentPhoto').files[0] || documentPhotoFile;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const isValid = fullName && birthDate && email && emailRegex.test(email) && resume && facePhotoFile && documentPhoto;
-  document.getElementById('submitButton').disabled = !isValid;
-  document.getElementById('submitButton').classList.toggle('disabled-button', !isValid);
-  document.getElementById('fullName').classList.toggle('error-field', !fullName);
-  document.getElementById('birthDate').classList.toggle('error-field', !birthDate);
-  document.getElementById('email').classList.toggle('error-field', !email || !emailRegex.test(email));
-  document.getElementById('resume').classList.toggle('error-field', !resume);
-  document.getElementById('facePhotoPreview').classList.toggle('error-field', !facePhotoFile);
-  document.getElementById('documentPhotoPreview').classList.toggle('error-field', !documentPhoto);
-}
-
-document.getElementById('fullName').addEventListener('input', checkFormValidity);
-document.getElementById('birthDate').addEventListener('input', checkFormValidity);
-document.getElementById('email').addEventListener('input', checkFormValidity);
-document.getElementById('resume').addEventListener('change', (event) => {
-  const file = event.target.files[0];
-  if (file && !validateFileSize(file, 5)) {
-    showToast('O currículo deve ter no máximo 5MB.', 'error');
-    event.target.value = '';
-  }
-  checkFormValidity();
-});
-document.getElementById('documentPhoto').addEventListener('change', (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      showToast('A foto do documento deve ser JPEG ou PNG.', 'error');
-      event.target.value = '';
-    } else if (!validateFileSize(file, 5)) {
-      showToast('A foto do documento deve ter no máximo 5MB.', 'error');
-      event.target.value = '';
-    } else {
-      documentPhotoFile = file;
-      cleanupObjectURLs();
-      const url = URL.createObjectURL(file);
-      objectURLs.push(url);
-      document.getElementById('documentPhotoPreview').src = url;
-      document.getElementById('documentPhotoPreview').classList.remove('hidden');
-    }
-  }
-  checkFormValidity();
-});
-document.getElementById('uploadFacePhoto').addEventListener('change', async (event) => {
-  const file = event.target.files[0];
-  if (file) {
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      showToast('A foto do rosto deve ser JPEG ou PNG.', 'error');
-      event.target.value = '';
-    } else if (!validateFileSize(file, 5)) {
-      showToast('A foto do rosto deve ter no máximo 5MB.', 'error');
-      event.target.value = '';
-    } else {
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      await new Promise(resolve => img.onload = resolve));
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      canvas.getContext('2d').drawImage(img, 0, 0);
-      if (faceApiLoaded && !(await validateFaceInImage(canvas))) {
-        showToast('Nenhum rosto detectado na imagem.', 'error');
-        event.target.value = '';
-        URL.revokeObjectURL(img.src);
-      } else {
-        facePhotoFile = file;
-        cleanupObjectURLs();
-        const url = URL.createObjectURL(file);
-        objectURLs.push(url);
-        document.getElementById('facePhotoPreview').src = url;
-        document.getElementById('facePhotoPreview').classList.remove('hidden');
-      }
-    }
-  }
-  checkFormValidity();
-});
-
-async function checkCameraSupport() {
-  console.log('Verificação de suporte à câmera');
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    return false;
-  }
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    return devices.some(device => device.kind === 'videoinput');
-  } catch (error) {
-    console.error('Erro ao verificar câmera:', error);
-    return false;
-  }
-}
-
-function playAudioInstructions() {
-  console.log('[playAudioInstructions] Tocando instruções');
-  const instructions = 'Posicione seu rosto dentro do oval maior na tela, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto. Quando o oval ficar verde, clique no botão vermelho para iniciar a contagem regressiva e capturar.';
-  const utterance = new SpeechSynthesisUtterance(instructions);
-  utterance.lang = 'pt-BR';
-  window.speechSynthesis.speak(utterance);
-}
-
-async function startFaceCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter) {
-  console.log('[startFaceCapture] Iniciando captura de rosto');
-  showToast('Iniciando captura de rosto...', 'success');
-
-  if (!(await checkCameraSupport())) {
-    showToast('Seu dispositivo não suporta acesso à câmera. Use a opção de upload.', 'error');
-    buttonElement.disabled = false;
-    buttonElement.classList.remove('disabled-button');
-    return;
-  }
-
-  if (!faceApiLoaded) {
-    console.log('[startFaceCapture] Aguardando carregamento do face-api.js');
-    if (!(await loadFaceApi())) {
-      showToast('Falha ao carregar detector de rostos. Use a opção de upload.', 'error');
-      buttonElement.disabled = true;
-      buttonElement.textContent = 'Captura Indisponível';
-      buttonElement.classList.add('disabled-button');
-      return;
-    }
-  }
-
-  let stream = null;
-  try {
-    console.log('[startFaceCapture] Acessando câmera frontal');
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } });
-    videoElement.srcObject = stream;
-    videoElement.classList.add('fullscreen-video');
-    videoElement.classList.remove('hidden');
-
-    const overlay = document.createElement('div');
-    overlay.className = 'face-overlay';
-    const oval = document.createElement('div');
-    oval.className = 'face-oval';
-    const instructions = document.createElement('div');
-    instructions.className = 'face-instructions';
-    instructions.textContent = 'Posicione seu rosto no oval maior';
-    const feedback = document.createElement('div');
-    feedback.className = 'face-feedback';
-    feedback.setAttribute('aria-live', 'polite');
-    const countdown = document.createElement('div');
-    countdown.className = 'countdown';
-    countdown.setAttribute('aria-live', 'polite');
-    const audioButton = document.createElement('button');
-    audioButton.className = 'audio-button';
-    audioButton.innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707a1 1 0 011.414 0l4.707 4.707H20a1 1 0 011 1v4a1 1 0 01-1 1h-1.586l-4.707 4.707a1 1 0 01-1.414 0L5.586 15z"/></svg>';
-    audioButton.setAttribute('aria-label', 'Tocar instruções de áudio');
-    audioButton.onclick = playAudioInstructions;
-    overlay.appendChild(oval);
-    overlay.appendChild(instructions);
-    overlay.appendChild(feedback);
-    overlay.appendChild(countdown);
-    overlay.appendChild(audioButton);
-    document.body.appendChild(overlay);
-
-    function updateOvalPosition() {
-      const videoRect = videoElement.getBoundingClientRect();
-      const isMobile = window.innerWidth <= 640;
-      const ovalWidth = Math.min(videoRect.width * (isMobile ? 0.6 : 0.7), isMobile ? 400 : 600);
-      const ovalHeight = ovalWidth * 1.3;
-      oval.style.width = `${ovalWidth}px`;
-      oval.style.height = `${ovalHeight}px`;
-      oval.style.left = `${videoRect.left + videoRect.width / 2 - ovalWidth / 2}px`;
-      oval.style.top = `${videoRect.top + videoRect.height / 2 - ovalHeight / 2}px`;
-    }
-    updateOvalPosition();
-    window.addEventListener('resize', updateOvalPosition);
-
-    let faceDetected = false;
-    let detectionTimeout = null;
-    async function detectFace() {
-      if (!videoElement.srcObject) {
-        console.log('[detectFace] Stream encerrado');
-        return;
-      }
-      try {
-        const detections = await faceapi.detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.45 }));
-        if (detections) {
-          console.log('[detectFace] Rosto detectado');
-          const box = detections.detection.box;
-          const videoRect = videoElement.getBoundingClientRect();
-          const ovalRect = oval.getBoundingClientRect();
-          const isCentered = box.x > ovalRect.left - 150 && box.x + box.width < ovalRect.right + 150 &&
-                            box.y > ovalRect.top - 150 && box.y + box.height < ovalRect.bottom + 150;
-          const isLargeEnough = box.width > ovalRect.width * 0.2 && box.height > ovalRect.height * 0.2;
-          if (isCentered && isLargeEnough && checkImageBrightness(canvasElement)) {
-            faceDetected = true;
-            oval.style.borderColor = '#10b981';
-            feedback.textContent = 'Rosto detectado! Clique para capturar.';
-          } else {
-            faceDetected = false;
-            oval.style.borderColor = '#ef4444';
-            feedback.textContent = !isCentered ? 'Centralize seu rosto no oval.' :
-                                  !isLargeEnough ? 'Aproxime o rosto do oval.' :
-                                  'Ambiente muito escuro.';
-          }
-        } else {
-          faceDetected = false;
-          oval.style.borderColor = '#ef4444';
-          feedback.textContent = 'Nenhum rosto detectado. Posicione o rosto no oval.';
-        }
-      } catch (error) {
-        console.error('[detectFace] Erro:', error);
-        faceDetected = false;
-        oval.style.borderColor = '#ef4444';
-        feedback.textContent = 'Erro na detecção. Posicione o rosto no oval.';
-      }
-      if (videoElement.srcObject) {
-        detectionTimeout = setTimeout(detectFace, 200);
-      }
-    }
-
-    videoElement.addEventListener('play', () => {
-      console.log('[videoElement] Vídeo iniciado');
-      resizeImage(videoElement, canvasElement);
-      detectFace();
-    });
-
-    const captureButton = document.createElement('button');
-    captureButton.className = 'capture-button';
-    captureButton.setAttribute('aria-label', 'Capturar foto');
-    document.body.appendChild(captureButton);
-
-    captureButton.onclick = () => {
-      console.log('[captureButton] Clicado');
-      if (!faceDetected) {
-        showToast('Posicione o rosto corretamente no oval.', 'error');
-        return;
-      }
-      captureButton.classList.add('enabled');
-      let count = 3;
-      countdown.textContent = count;
-      document.getElementById('liveRegion').textContent = `Capturando em ${count}`;
-      const countdownInterval = setInterval(() => {
-        count--;
-        console.log('[countdown]', count);
-        if (count > 0) {
-          countdown.textContent = count;
-          document.getElementById('liveRegion').textContent = `Capturando em ${count}`;
-        } else {
-          clearInterval(countdownInterval);
-          countdown.textContent = '';
-          document.getElementById('liveRegion').textContent = 'Foto capturada';
-          captureButton.classList.remove('enabled');
-          resizeImage(videoElement, canvasElement, 1280);
-          canvasElement.toBlob(async (blob) => {
-            console.log('[toBlob] Imagem capturada, tamanho:', blob.size);
-            if (!validateFileSize(blob, 5)) {
-              showToast('A foto do rosto é muito grande. Tente novamente.', 'error');
-              cleanupResources();
-              return;
-            }
-            if (!(await validateFaceInImage(canvasElement))) {
-              showToast('Nenhum rosto detectado na foto capturada.', 'error');
-              cleanupResources();
-              return;
-            }
-            const url = URL.createObjectURL(blob);
-            objectURLs.push(url);
-            const modal = document.createElement('div');
-            modal.className = 'confirmation-modal';
-            modal.setAttribute('role', 'dialog');
-            modal.setAttribute('aria-labelledby', 'modal-title');
-            modal.innerHTML = `
-              <h2 id="modal-title" class="sr-only">Confirmar Foto do Rosto</h2>
-              <img src="${url}" alt="Foto capturada" tabindex="0">
-              <button class="close" aria-label="Fechar modal">×</button>
-              <div class="buttons">
-                <button class="modal-button retry" tabindex="0">Tentar Novamente</button>
-                <button class="modal-button confirm" tabindex="0">Confirmar</button>
-              </div>
-            `;
-            document.body.appendChild(modal);
-            const retryButton = modal.querySelector('.retry');
-            const confirmButton = modal.querySelector('.confirm');
-            const closeButton = modal.querySelector('.close');
-            const img = modal.querySelector('img');
-            img.focus();
-            img.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ' ') confirmButton.click();
-              if (e.key === 'Escape') closeButton.click();
-            });
-            retryButton.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ' ') retryButton.click();
-            });
-            confirmButton.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ' ') confirmButton.click();
-            });
-            closeButton.addEventListener('keydown', (e) => {
-              if (e.key === 'Enter' || e.key === ' ') closeButton.click();
-            });
-            img.addEventListener('click', () => {
-              img.classList.toggle('zoomed');
-            });
-            function cleanupResources() {
-              console.log('[cleanupResources] Limpando');
-              stream.getTracks().forEach(track => track.stop());
-              videoElement.srcObject = null;
-              videoElement.classList.add('hidden');
-              videoElement.classList.remove('fullscreen-video');
-              captureButton.remove();
-              overlay.remove();
-              modal.remove();
-              clearTimeout(detectionTimeout);
-              window.removeEventListener('resize', updateOvalPosition);
-              buttonElement.disabled = false;
-              buttonElement.classList.remove('disabled-button');
-            }
-            retryButton.onclick = () => {
-              console.log('[retryButton] Reintentando');
-              cleanupResources();
-              cleanupObjectURLs();
-            };
-            confirmButton.onclick = () => {
-              console.log('[confirmButton] Confirmado');
-              const file = new File([blob], 'face-photo.jpg', { type: 'image/jpeg' });
-              fileSetter.value = file;
-              cleanupObjectURLs();
-              const newUrl = URL.createObjectURL(file);
-              objectURLs.push(newUrl);
-              previewElement.src = newUrl;
-              previewElement.classList.remove('hidden');
-              cleanupResources();
-              buttonElement.textContent = 'Tirar Novamente';
-              buttonElement.setAttribute('aria-label', 'Tirar nova foto');
-              buttonElement.disabled = false;
-              buttonElement.classList.remove('disabled-button');
-              buttonElement.onclick = () => startFaceCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter);
-              checkFormValidity();
-            };
-            closeButton.onclick = () => {
-              console.log('[closeButton] Fechado');
-              cleanupResources();
-              cleanupObjectURLs();
-            };
-          }, 'image/jpeg', 0.95);
-        }
-      }, 1000);
-    };
-  } catch (error) {
-    console.error('[startFaceCapture] Erro:', error);
-    let message = 'Erro ao acessar a câmera. Verifique as permissões ou use a opção de upload.';
-    if (error.name === 'NotAllowedError') {
-      message = 'Permissão de câmera negada. Habilite a câmera nas configurações.';
-    } else if (error.name === 'NotFoundError') {
-      message = 'Nenhuma câmera encontrada. Use a opção de upload.';
-    } else if (error.name === 'OverconstrainedError') {
-      message = 'Câmera frontal não disponível. Use a opção de upload.';
-    }
-    showToast(message, 'error');
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      videoElement.srcObject = null;
-    }
-    buttonElement.disabled = false;
-    buttonElement.classList.remove('disabled-button');
-  }
-}
-
-const captureFaceButton = document.getElementById('captureFacePhoto');
-captureFaceButton.removeEventListener('click', startFaceCapture);
-captureFaceButton.addEventListener('click', () => {
-  console.log('[captureFaceButton] Clicado');
-  captureFaceButton.disabled = true;
-  captureFaceButton.classList.add('disabled-button');
-  startFaceCapture(
-    document.getElementById('faceVideo'),
-    document.getElementById('faceCanvas'),
-    captureFaceButton,
-    document.getElementById('facePhotoPreview'),
-    { name: 'face-photo', value: null, set value(file) { facePhotoFile = file; } }
-  );
-});
-
-async function startDocumentCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter) {
-  console.log('[startDocumentCapture] Iniciando');
-  if (!(await checkCameraSupport())) {
-    showToast('Seu dispositivo não suporta acesso à câmera.', 'error');
-    return;
-  }
-  let stream = null;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    videoElement.srcObject = stream;
-    videoElement.classList.add('fullscreen-video');
-    videoElement.classList.remove('hidden');
-    const captureButton = document.createElement('button');
-    captureButton.className = 'capture-button';
-    captureButton.setAttribute('aria-label', 'Capturar foto');
-    document.body.appendChild(captureButton);
-    captureButton.onclick = () => {
-      console.log('[captureDocumentButton] Capturando');
-      resizeImage(videoElement, canvasElement, 1280);
-      canvasElement.toBlob((blob) => {
-        if (!validateFileSize(blob, 5)) {
-          showToast('A foto do documento é muito grande. Tente novamente.', 'error');
-          return;
-        }
-        const file = new File([blob], 'document-photo.jpg', { type: 'image/jpeg' });
-        fileSetter.value = file;
-        cleanupObjectURLs();
-        const url = URL.createObjectURL(file);
-        objectURLs.push(url);
-        previewElement.src = url;
-        previewElement.classList.remove('hidden');
-        stream.getTracks().forEach(track => track.stop());
-        videoElement.srcObject = null;
-        videoElement.classList.add('hidden');
-        videoElement.classList.remove('fullscreen-video');
-        captureButton.remove();
-        buttonElement.textContent = 'Tirar Novamente';
-        buttonElement.setAttribute('aria-label', 'Tirar nova foto');
-        buttonElement.onclick = () => startDocumentCapture(videoElement, canvasElement, buttonElement, previewElement, fileSetter);
-        checkFormValidity();
-      }, 'image/jpeg', 0.95);
-    };
-  } catch (error) {
-    console.error('[startDocumentCapture] Erro:', error);
-    showToast('Erro ao acessar a câmera. Verifique as permissões ou use a opção de upload.', 'error');
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
-  }
-}
-
-document.getElementById('captureDocumentPhoto').addEventListener('click', () => {
-  console.log('[captureDocumentPhotoButton] Clicado');
-  startDocumentCapture(
-    document.getElementById('documentVideo'),
-    document.getElementById('documentCanvas'),
-    document.getElementById('captureDocumentPhoto'),
-    document.getElementById('documentPhotoPreview'),
-    { name: 'document-photo', value: null, set value(file) { documentPhotoFile = file; } }
-  );
-});
-
-function showFullscreenPreview(src) {
-  console.log('[showFullscreenPreview] Exibindo');
-  const preview = document.createElement('div');
-  preview.className = 'fullscreen-preview';
-  preview.innerHTML = `
-    <img src="${src}" alt="Pré-visualização em tela cheia">
-    <button aria-label="Fechar visualização">×</button>
-  `;
-  document.body.appendChild(preview);
-  preview.querySelector('button').onclick = () => {
-    preview.remove();
-    cleanupObjectURLs();
-  };
-}
-
-document.querySelectorAll('.captured-image').forEach(img => {
-  img.addEventListener('click', () => {
-    if (img.src) showFullscreenPreview(img.src);
-  });
-});
-
-document.getElementById('clearForm').addEventListener('click', () => {
-  console.log('[clearForm] Limpando');
-  document.getElementById('jobForm').reset();
-  facePhotoFile = documentPhotoFile = null;
-  document.querySelectorAll('img.captured-image').forEach(img => {
-    img.src = '';
-    img.classList.add('hidden');
-  });
-  document.querySelectorAll('button[id^="capture"]').forEach(btn => {
-    btn.textContent = 'Iniciar Captura';
-    btn.setAttribute('aria-label', 'Iniciar captura de foto');
-    btn.disabled = false;
-    btn.classList.remove('disabled-button');
-  });
-  document.querySelectorAll('input, img.captured-image').forEach(el => el.classList.remove('error-field'));
-  cleanupObjectURLs();
-  checkFormValidity();
-  showToast('Formulário limpo.', 'success');
-});
-
-document.getElementById('toggleHelp').addEventListener('click', () => {
-  console.log('[toggleHelp] Alternando ajuda');
-  const helpSection = document.getElementById('helpSection');
-  const isExpanded = helpSection.classList.toggle('collapsed');
-  document.getElementById('toggleHelp').setAttribute('aria-expanded', !isExpanded);
-  document.getElementById('liveRegion').textContent = isExpanded ? 'Seção de ajuda colapsada' : 'Seção de ajuda expandida';
-});
-
-document.getElementById('jobForm').addEventListener('submit', async function(event) {
-  console.log('[jobForm] Enviando');
-  event.preventDefault();
-  if (!confirm('Deseja enviar o formulário? Verifique todos os dados e fotos antes de confirmar.')) {
-    return;
-  }
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('jobForm');
   const submitButton = document.getElementById('submitButton');
-  const progressBar = document.getElementById('progressBar');
-  const progress = document.getElementById('progress');
-  submitButton.classList.add('loading');
-  submitButton.disabled = true;
-  progressBar.style.display = 'block';
-  progress.style.width = '0%';
-  const fullName = document.getElementById('fullName').value.trim();
-  const birthDate = document.getElementById('birthDate').value;
-  const email = document.getElementById('email').value.trim();
-  const resume = document.getElementById('resume').files[0];
-  const documentPhoto = document.getElementById('documentPhoto').files[0] || documentPhotoFile;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!fullName || !birthDate || !email || !emailRegex.test(email) || !resume || !facePhotoFile || !documentPhoto) {
-    showToast('Preencha todos os campos e capture/upload todas as fotos.', 'error');
-    submitButton.classList.remove('loading');
-    submitButton.disabled = false;
-    progressBar.style.display = 'none';
-    return;
+  const toggleHelp = document.getElementById('toggleHelp');
+  const helpSection = document.getElementById('helpSection');
+  const captureDocumentPhoto = document.getElementById('captureDocumentPhoto');
+  const documentVideo = document.getElementById('document-video');
+  const documentCanvas = document.getElementById('document-canvas');
+  const documentPhotoPreview = document.getElementById('documentPhotoPreview');
+  const documentPhotoInput = document.getElementById('documentPhoto');
+  const captureFacePhoto = document.getElementById('captureFacePhoto');
+  const uploadFacePhoto = document.getElementById('uploadFacePhoto');
+  const facePhotoPreview = document.getElementById('facePhotoPreview');
+  const toast = document.getElementById('toast');
+  const fullscreenPreview = document.getElementById('fullscreenPreview');
+  const previewImage = document.getElementById('previewImage');
+  const closePreview = fullscreenPreview.querySelector('.close');
+
+  let documentPhotoFile = null;
+  let facePhotoFile = null;
+
+  // Carregar foto de rosto do sessionStorage, se existir
+  const savedFacePhoto = sessionStorage.getItem('facePhoto');
+  if (savedFacePhoto) {
+    facePhotoPreview.src = savedFacePhoto;
+    facePhotoPreview.classList.remove('hidden');
+    fetch(savedFacePhoto)
+      .then(res => res.blob())
+      .then(blob => {
+        facePhotoFile = new File([blob], 'face-photo.jpg', { type: 'image/jpeg' });
+        checkFormValidity();
+      });
+    sessionStorage.removeItem('facePhoto'); // Limpar após uso
   }
-  const toBase64 = (file) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
+
+  // Toggle Help Section
+  toggleHelp.addEventListener('click', () => {
+    const isCollapsed = helpSection.classList.contains('collapsed');
+    helpSection.classList.toggle('collapsed', !isCollapsed);
+    toggleHelp.setAttribute('aria-expanded', isCollapsed);
+    helpSection.style.maxHeight = isCollapsed ? `${helpSection.scrollHeight}px` : '0';
+    helpSection.style.padding = isCollapsed ? '1.5rem' : '0';
+    helpSection.style.marginTop = isCollapsed ? '1rem' : '0';
   });
-  try {
-    progress.style.width = '25%';
-    const facePhotoBase64 = await toBase64(facePhotoFile);
-    progress.style.width = '50%';
-    const documentPhotoBase64 = await toBase64(documentPhoto);
-    progress.style.width = '75%';
-    const resumeBase64 = await toBase64(resume);
-    const response = await fetch('https://script.google.com/macros/s/AKfycbz5r42BpMn1BMJvX6pOu5-Sic95ACv3Bwkzyl9uQ194RWhNUA1mcRUa5LHQVUeE4VNy/exec', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fullName,
-        birthDate,
-        email,
-        resume: resumeBase64,
-        facePhoto: facePhotoBase64,
-        documentPhoto: documentPhotoBase64,
-        timestamp: new Date().toISOString()
-      }),
-      timeout: 30000
-    });
-    progress.style.width = '100%';
-    const result = await response.json();
-    if (result.status === 'success') {
-      showToast('Cadastro enviado com sucesso!', 'success');
-      document.getElementById('jobForm').reset();
-      facePhotoFile = documentPhotoFile = null;
-      document.querySelectorAll('img.captured-image').forEach(img => {
-        img.src = '';
-        img.classList.add('hidden');
-      });
-      document.querySelectorAll('button[id^="capture"]').forEach(btn => {
-        btn.textContent = 'Iniciar Captura';
-        btn.setAttribute('aria-label', 'Iniciar captura de foto');
-        btn.disabled = false;
-        btn.classList.remove('disabled-button');
-      });
-      document.querySelectorAll('input, img.captured-image').forEach(el => el.classList.remove('error-field'));
-      cleanupObjectURLs();
+
+  // Redirecionar para página de captura de rosto
+  captureFacePhoto.addEventListener('click', () => {
+    window.location.href = 'capture-face.html?return=index.html';
+  });
+
+  // Upload de foto de rosto
+  uploadFacePhoto.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (file && ['image/jpeg', 'image/png'].includes(file.type)) {
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('A imagem deve ter no máximo 5MB.', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        facePhotoPreview.src = reader.result;
+        facePhotoPreview.classList.remove('hidden');
+        facePhotoFile = file;
+        checkFormValidity();
+      };
+      reader.readAsDataURL(file);
     } else {
-      throw new Error(result.message || 'Erro ao enviar os dados.');
+      showToast('Por favor, selecione uma imagem JPEG ou PNG.', 'error');
     }
-  } catch (error) {
-    console.error('[jobForm] Erro:', error);
-    showToast(error.message.includes('timeout') ? 'Tempo de envio esgotado. Verifique sua conexão.' : 'Erro ao enviar os dados.', 'error');
-  } finally {
-    submitButton.classList.remove('loading');
-    progressBar.style.display = 'none';
-    checkFormValidity();
+  });
+
+  // Captura de foto do documento
+  captureDocumentPhoto.addEventListener('click', async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      documentVideo.srcObject = stream;
+      documentVideo.classList.remove('hidden');
+      documentVideo.classList.add('fullscreen-video');
+      const captureButton = document.createElement('button');
+      captureButton.classList.add('capture-button');
+      document.body.appendChild(captureButton);
+
+      captureButton.addEventListener('click', () => {
+        documentCanvas.width = documentVideo.videoWidth;
+        documentCanvas.height = documentVideo.videoHeight;
+        documentCanvas.getContext('2d').drawImage(documentVideo, 0, 0);
+        const imageData = documentCanvas.toDataURL('image/jpeg');
+        documentPhotoPreview.src = imageData;
+        documentPhotoPreview.classList.remove('hidden');
+        documentCanvas.toBlob((blob) => {
+          documentPhotoFile = new File([blob], 'document-photo.jpg', { type: 'image/jpeg' });
+          checkFormValidity();
+        }, 'image/jpeg');
+        stopStream(stream);
+        documentVideo.classList.add('hidden');
+        captureButton.remove();
+      });
+    } catch (error) {
+      showToast('Erro ao acessar a câmera. Verifique as permissões.', 'error');
+      console.error(error);
+    }
+  });
+
+  // Upload de foto do documento
+  documentPhotoInput.addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (file && ['image/jpeg', 'image/png'].includes(file.type)) {
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('A imagem deve ter no máximo 5MB.', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        documentPhotoPreview.src = reader.result;
+        documentPhotoPreview.classList.remove('hidden');
+        documentPhotoFile = file;
+        checkFormValidity();
+      };
+      reader.readAsDataURL(file);
+    } else {
+      showToast('Por favor, selecione uma imagem JPEG ou PNG.', 'error');
+    }
+  });
+
+  // Visualizar imagem ampliada
+  [documentPhotoPreview, facePhotoPreview].forEach((img) => {
+    img.addEventListener('click', () => {
+      previewImage.src = img.src;
+      fullscreenPreview.classList.remove('hidden');
+    });
+  });
+
+  closePreview.addEventListener('click', () => {
+    fullscreenPreview.classList.add('hidden');
+  });
+
+  // Validação do formulário
+  form.addEventListener('input', checkFormValidity);
+  form.addEventListener('change', checkFormValidity);
+
+  function checkFormValidity() {
+    const fullName = document.getElementById('fullName').value.trim();
+    const birthDate = document.getElementById('birthDate').value;
+    const email = document.getElementById('email').value.trim();
+    const resume = document.getElementById('resume').files[0];
+    const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const isResumeValid = resume && resume.type === 'application/pdf' && resume.size <= 5 * 1024 * 1024;
+
+    const isFormValid = fullName && birthDate && isEmailValid && isResumeValid && facePhotoFile && documentPhotoFile;
+
+    submitButton.disabled = !isFormValid;
+    submitButton.classList.toggle('disabled-button', !isFormValid);
+  }
+
+  // Envio do formulário
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    submitButton.disabled = true;
+    submitButton.classList.add('loading');
+
+    const formData = new FormData();
+    formData.append('fullName', document.getElementById('fullName').value);
+    formData.append('birthDate', document.getElementById('birthDate').value);
+    formData.append('email', document.getElementById('email').value);
+    formData.append('resume', document.getElementById('resume').files[0]);
+    formData.append('facePhoto', facePhotoFile);
+    formData.append('documentPhoto', documentPhotoFile);
+
+    try {
+      // Simulação de envio
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      showToast('Cadastro enviado com sucesso!', 'success');
+      form.reset();
+      documentPhotoPreview.classList.add('hidden');
+      facePhotoPreview.classList.add('hidden');
+      facePhotoFile = null;
+      documentPhotoFile = null;
+      checkFormValidity();
+    } catch (error) {
+      showToast('Erro ao enviar o cadastro. Tente novamente.', 'error');
+    } finally {
+      submitButton.disabled = false;
+      submitButton.classList.remove('loading');
+    }
+  });
+
+  // Funções auxiliares
+  function showToast(message, type) {
+    toast.textContent = message;
+    toast.className = `toast toast-${type}`;
+    toast.classList.remove('hidden');
+    setTimeout(() => {
+      toast.classList.add('hidden');
+    }, 3000);
+  }
+
+  function stopStream(stream) {
+    stream.getTracks().forEach(track => track.stop());
   }
 });
