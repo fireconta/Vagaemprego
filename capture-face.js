@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let stream = null;
   let isCapturing = false;
+  let lastCaptureTime = 0;
 
   // Carregar modelos
   async function loadModels() {
@@ -48,23 +49,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Calcular nitidez (variância de Laplacian)
-  function calculateSharpness(canvas, ctx) {
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  // Calcular nitidez (região central)
+  function calculateSharpness(canvas, ctx, box) {
+    const regionSize = Math.min(box.width, box.height) * 0.5;
+    const x = box.x + box.width / 2 - regionSize / 2;
+    const y = box.y + box.height / 2 - regionSize / 2;
+    const imageData = ctx.getImageData(x, y, regionSize, regionSize);
     const data = imageData.data;
     let laplacianSum = 0;
     let count = 0;
 
-    for (let y = 1; y < canvas.height - 1; y += 2) { // Pular linhas para otimizar
-      for (let x = 1; x < canvas.width - 1; x += 2) {
-        const idx = (y * canvas.width + x) * 4;
+    for (let i = 1; i < regionSize - 1; i += 2) {
+      for (let j = 1; j < regionSize - 1; j += 2) {
+        const idx = (i * regionSize + j) * 4;
         const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
         const laplacian =
           -4 * gray +
-          (data[((y - 1) * canvas.width + x) * 4] * 0.299 + data[((y - 1) * canvas.width + x) * 4 + 1] * 0.587 + data[((y - 1) * canvas.width + x) * 4 + 2] * 0.114) +
-          (data[((y + 1) * canvas.width + x) * 4] * 0.299 + data[((y + 1) * canvas.width + x) * 4 + 1] * 0.587 + data[((y + 1) * canvas.width + x) * 4 + 2] * 0.114) +
-          (data[(y * canvas.width + (x - 1)) * 4] * 0.299 + data[(y * canvas.width + (x - 1)) * 4 + 1] * 0.587 + data[(y * canvas.width + (x - 1)) * 4 + 2] * 0.114) +
-          (data[(y * canvas.width + (x + 1)) * 4] * 0.299 + data[(y * canvas.width + (x + 1)) * 4 + 1] * 0.587 + data[(y * canvas.width + (x + 1)) * 4 + 2] * 0.114);
+          (data[((i - 1) * regionSize + j) * 4] * 0.299 + data[((i - 1) * regionSize + j) * 4 + 1] * 0.587 + data[((i - 1) * regionSize + j) * 4 + 2] * 0.114) +
+          (data[((i + 1) * regionSize + j) * 4] * 0.299 + data[((i + 1) * regionSize + j) * 4 + 1] * 0.587 + data[((i + 1) * regionSize + j) * 4 + 2] * 0.114) +
+          (data[(i * regionSize + (j - 1)) * 4] * 0.299 + data[(i * regionSize + (j - 1)) * 4 + 1] * 0.587 + data[(i * regionSize + (j - 1)) * 4 + 2] * 0.114) +
+          (data[(i * regionSize + (j + 1)) * 4] * 0.299 + data[(i * regionSize + (j + 1)) * 4 + 1] * 0.587 + data[(i * regionSize + (j + 1)) * 4 + 2] * 0.114);
         laplacianSum += laplacian * laplacian;
         count++;
       }
@@ -105,67 +109,64 @@ document.addEventListener('DOMContentLoaded', async () => {
             const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
             faceOverlay.innerHTML = '';
 
+            // Desenhar oval fixo no centro
+            const oval = document.createElement('div');
+            oval.classList.add('face-oval');
+            faceOverlay.appendChild(oval);
+
             if (detections.length === 1) {
               const { box } = detections[0].detection;
               const landmarks = detections[0].landmarks;
               const nose = landmarks.getNose()[0];
 
-              // Desenhar oval
-              const oval = document.createElement('div');
-              oval.classList.add('face-oval');
-              oval.style.left = `${box.x - box.width * 0.3}px`;
-              oval.style.top = `${box.y - box.height * 0.6}px`;
-              oval.style.width = `${box.width * 1.6}px`;
-              oval.style.height = `${box.height * 2.2}px`;
-              faceOverlay.appendChild(oval);
-
-              // Verificar posicionamento
+              // Verificar alinhamento com oval central
               const videoWidth = faceVideo.videoWidth;
               const videoHeight = faceVideo.videoHeight;
               const centerX = videoWidth / 2;
               const centerY = videoHeight / 2;
               const distanceToCenter = Math.sqrt((nose.x - centerX) ** 2 + (nose.y - centerY) ** 2);
 
-              if (distanceToCenter < videoWidth * 0.15 && box.width > videoWidth * 0.3) {
-                oval.style.borderColor = '#22c55e'; // Verde
+              if (distanceToCenter < videoWidth * 0.1 && box.width > videoWidth * 0.25) {
+                oval.style.borderColor = '#22c55e';
                 oval.classList.add('pulse');
-                faceFeedback.textContent = 'Rosto posicionado! Verificando nitidez...';
+                faceFeedback.innerHTML = '✅ Rosto alinhado! Verificando nitidez...';
                 faceFeedback.classList.remove('hidden');
 
-                // Verificar nitidez
+                // Verificar nitidez na região do rosto
                 tempCtx.drawImage(faceVideo, 0, 0);
-                const sharpness = calculateSharpness(tempCanvas, tempCtx);
+                const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-                if (sharpness > 80) { // Limiar ajustado para maior sensibilidade
-                  faceFeedback.textContent = 'Imagem nítida! Capturando...';
+                if (sharpness > 70 && Date.now() - lastCaptureTime > 5000) { // Limiar e cooldown
+                  faceFeedback.innerHTML = '📸 Imagem nítida! Capturando...';
                   isCapturing = true;
                   clearInterval(detectionInterval);
                   startCountdown();
                 } else {
-                  faceFeedback.textContent = 'Imagem desfocada. Ajuste a iluminação.';
+                  faceFeedback.innerHTML = '🌫️ Imagem desfocada. Ajuste a iluminação.';
                 }
               } else {
-                oval.style.borderColor = '#10b981'; // Cor padrão
+                oval.style.borderColor = '#10b981';
                 oval.classList.remove('pulse');
-                faceFeedback.textContent = 'Centralize o rosto no oval.';
+                faceFeedback.innerHTML = '↔️ Centralize o rosto no oval.';
                 faceFeedback.classList.remove('hidden');
               }
             } else {
-              faceFeedback.textContent = detections.length === 0 ? 'Nenhum rosto detectado.' : 'Apenas um rosto permitido.';
+              oval.style.borderColor = '#10b981';
+              faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado.' : '⚠️ Apenas um rosto permitido.';
               faceFeedback.classList.remove('hidden');
             }
           }
-        }, 200); // Intervalo otimizado
+        }, 250); // Intervalo otimizado
       });
     } catch (error) {
-      showToast('Erro ao acessar a câmera. Verifique permissões ou dispositivos.', 'error');
+      showToast('Erro ao acessar a câmera. Verifique permissões ou conecte um dispositivo.', 'error');
       console.error('Erro na câmera:', error);
     }
   }
 
   // Contagem regressiva
   function startCountdown() {
-    let countdown = 2; // Reduzido para 2s
+    let countdown = 2;
     countdownElement.textContent = countdown;
     countdownElement.classList.remove('hidden');
     countdownElement.style.opacity = '1';
@@ -188,21 +189,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   function captureFace() {
     faceCanvas.width = faceVideo.videoWidth;
     faceCanvas.height = faceVideo.videoHeight;
-    faceCanvas.getContext('2d').drawImage(faceVideo, 0, 0);
-    const imageData = faceCanvas.toDataURL('image/jpeg', 0.9); // Qualidade JPEG otimizada
+    const ctx = faceCanvas.getContext('2d');
+    ctx.drawImage(faceVideo, 0, 0);
+    const imageData = faceCanvas.toDataURL('image/jpeg', 0.9);
     confirmationImage.src = imageData;
     confirmationModal.classList.remove('hidden');
+    ctx.clearRect(0, 0, faceCanvas.width, faceCanvas.height); // Limpar canvas
     stopStream();
-    faceVideo.classList.add('hidden');
-    faceOverlay.innerHTML = '';
     faceInstructions.classList.add('hidden');
     faceFeedback.classList.add('hidden');
+    faceOverlay.innerHTML = '';
+    lastCaptureTime = Date.now();
     isCapturing = false;
   }
 
   // Modal
   retakeButton.addEventListener('click', () => {
     confirmationModal.classList.add('hidden');
+    confirmationImage.src = ''; // Limpar imagem
+    faceVideo.classList.remove('hidden');
     startFaceCapture();
   });
 
@@ -216,6 +221,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   closeModalButton.addEventListener('click', () => {
     confirmationModal.classList.add('hidden');
+    confirmationImage.src = '';
+    faceVideo.classList.remove('hidden');
     startFaceCapture();
   });
 
