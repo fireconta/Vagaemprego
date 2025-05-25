@@ -121,14 +121,18 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 40vw;
-      max-width: 400px;
-      height: 60vh;
-      max-height: 600px;
+      width: 35vw;
+      min-width: 250px;
+      max-width: 350px;
+      height: 50vh;
+      min-height: 350px;
+      max-height: 500px;
       border: 4px dashed #10b981;
       border-radius: 50%;
       box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+      box-sizing: border-box;
       transition: border-color 0.3s, transform 0.3s;
+      z-index: 1002;
     }
     .face-oval.pulse {
       animation: pulse 1.5s infinite;
