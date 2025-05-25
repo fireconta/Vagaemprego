@@ -14,31 +14,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   const modelLoading = document.getElementById('modelLoading');
 
   let stream = null;
-  let faceDetected = false;
-  let countdownInterval = null;
   let isCapturing = false;
 
-  // Função para carregar modelos com fallback
+  // Carregar modelos
   async function loadModels() {
     const paths = ['./weights', '/weights'];
     for (const path of paths) {
       try {
-        console.log(`Tentando carregar modelos de: ${path}`);
+        console.log(`Carregando modelos de: ${path}`);
         await Promise.all([
           faceapi.nets.tinyFaceDetector.loadFromUri(path),
           faceapi.nets.faceLandmark68Net.loadFromUri(path),
         ]);
-        console.log(`Modelos carregados com sucesso de: ${path}`);
-        showToast('Modelos carregados com sucesso!', 'success');
+        console.log(`Modelos carregados: ${path}`);
+        showToast('Modelos carregados!', 'success');
         return true;
       } catch (error) {
-        console.error(`Erro ao carregar modelos de ${path}:`, error);
+        console.error(`Erro em ${path}:`, error);
       }
     }
-    throw new Error('Falha ao carregar modelos de todos os caminhos tentados.');
+    throw new Error('Falha ao carregar modelos.');
   }
 
-  // Carregar modelos
   modelLoading.classList.remove('hidden');
   try {
     await loadModels();
@@ -46,21 +43,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     startFaceCapture();
   } catch (error) {
     modelLoading.classList.add('hidden');
-    showToast('Erro ao carregar os modelos de detecção facial. Verifique se os arquivos tiny_face_detector_model-shard1 e face_landmark_68_model-shard1 estão na pasta weights.', 'error');
-    console.error('Erro final ao carregar modelos:', error);
+    showToast('Erro ao carregar modelos. Verifique a pasta weights.', 'error');
+    console.error('Erro ao carregar modelos:', error);
     return;
   }
 
-  // Função para calcular nitidez (variância de Laplacian)
+  // Calcular nitidez (variância de Laplacian)
   function calculateSharpness(canvas, ctx) {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
     let laplacianSum = 0;
     let count = 0;
 
-    // Converter para escala de cinza e calcular Laplacian
-    for (let y = 1; y < canvas.height - 1; y++) {
-      for (let x = 1; x < canvas.width - 1; x++) {
+    for (let y = 1; y < canvas.height - 1; y += 2) { // Pular linhas para otimizar
+      for (let x = 1; x < canvas.width - 1; x += 2) {
         const idx = (y * canvas.width + x) * 4;
         const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
         const laplacian =
@@ -73,43 +69,57 @@ document.addEventListener('DOMContentLoaded', async () => {
         count++;
       }
     }
-    return laplacianSum / count;
+    return count ? laplacianSum / count : 0;
   }
 
+  // Iniciar captura
   async function startFaceCapture() {
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      // Selecionar câmera frontal
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      let constraints = { video: { width: 1280, height: 720, facingMode: 'user' } };
+
+      if (videoDevices.length > 0) {
+        const frontCamera = videoDevices.find(device => device.label.toLowerCase().includes('front')) || videoDevices[0];
+        constraints.video.deviceId = frontCamera.deviceId;
+      }
+
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
       faceVideo.srcObject = stream;
       faceVideo.classList.remove('hidden');
-      faceVideo.classList.add('fullscreen-video');
       faceInstructions.classList.remove('hidden');
 
-      // Configurar canvas temporário para nitidez
+      // Configurar canvas temporário
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
 
       // Detecção facial
       faceVideo.addEventListener('play', async () => {
+        tempCanvas.width = faceVideo.videoWidth;
+        tempCanvas.height = faceVideo.videoHeight;
+
         const detectionInterval = setInterval(async () => {
           if (!faceVideo.paused && !faceVideo.ended && !isCapturing) {
-            const detections = await faceapi.detectAllFaces(faceVideo, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+            const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+            const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
             faceOverlay.innerHTML = '';
 
             if (detections.length === 1) {
-              const detection = detections[0];
-              const box = detection.detection.box;
-              const landmarks = detection.landmarks;
+              const { box } = detections[0].detection;
+              const landmarks = detections[0].landmarks;
               const nose = landmarks.getNose()[0];
 
+              // Desenhar oval
               const oval = document.createElement('div');
               oval.classList.add('face-oval');
-              oval.style.left = `${box.x - box.width * 0.2}px`;
-              oval.style.top = `${box.y - box.height * 0.5}px`;
-              oval.style.width = `${box.width * 1.4}px`;
-              oval.style.height = `${box.height * 2}px`;
+              oval.style.left = `${box.x - box.width * 0.3}px`;
+              oval.style.top = `${box.y - box.height * 0.6}px`;
+              oval.style.width = `${box.width * 1.6}px`;
+              oval.style.height = `${box.height * 2.2}px`;
               faceOverlay.appendChild(oval);
 
-              // Verificar se o rosto está centralizado
+              // Verificar posicionamento
               const videoWidth = faceVideo.videoWidth;
               const videoHeight = faceVideo.videoHeight;
               const centerX = videoWidth / 2;
@@ -117,56 +127,58 @@ document.addEventListener('DOMContentLoaded', async () => {
               const distanceToCenter = Math.sqrt((nose.x - centerX) ** 2 + (nose.y - centerY) ** 2);
 
               if (distanceToCenter < videoWidth * 0.15 && box.width > videoWidth * 0.3) {
-                faceFeedback.textContent = 'Rosto bem posicionado! Verificando nitidez...';
+                oval.style.borderColor = '#22c55e'; // Verde
+                oval.classList.add('pulse');
+                faceFeedback.textContent = 'Rosto posicionado! Verificando nitidez...';
                 faceFeedback.classList.remove('hidden');
-                faceDetected = true;
 
                 // Verificar nitidez
-                tempCanvas.width = videoWidth;
-                tempCanvas.height = videoHeight;
                 tempCtx.drawImage(faceVideo, 0, 0);
                 const sharpness = calculateSharpness(tempCanvas, tempCtx);
 
-                if (sharpness > 100) { // Limiar de nitidez (ajustável)
-                  faceFeedback.textContent = 'Imagem nítida! Preparando captura...';
+                if (sharpness > 80) { // Limiar ajustado para maior sensibilidade
+                  faceFeedback.textContent = 'Imagem nítida! Capturando...';
                   isCapturing = true;
                   clearInterval(detectionInterval);
                   startCountdown();
                 } else {
-                  faceFeedback.textContent = 'Imagem desfocada. Ajuste a iluminação ou aproxime-se da câmera.';
+                  faceFeedback.textContent = 'Imagem desfocada. Ajuste a iluminação.';
                 }
               } else {
-                faceFeedback.textContent = 'Ajuste o rosto ao centro do oval.';
+                oval.style.borderColor = '#10b981'; // Cor padrão
+                oval.classList.remove('pulse');
+                faceFeedback.textContent = 'Centralize o rosto no oval.';
                 faceFeedback.classList.remove('hidden');
-                faceDetected = false;
               }
             } else {
-              faceFeedback.textContent = detections.length === 0 ? 'Nenhum rosto detectado.' : 'Apenas um rosto deve ser detectado.';
+              faceFeedback.textContent = detections.length === 0 ? 'Nenhum rosto detectado.' : 'Apenas um rosto permitido.';
               faceFeedback.classList.remove('hidden');
-              faceDetected = false;
             }
           }
-        }, 100);
+        }, 200); // Intervalo otimizado
       });
     } catch (error) {
-      showToast('Erro ao acessar a câmera. Verifique as permissões.', 'error');
-      console.error('Erro na captura:', error);
+      showToast('Erro ao acessar a câmera. Verifique permissões ou dispositivos.', 'error');
+      console.error('Erro na câmera:', error);
     }
   }
 
   // Contagem regressiva
   function startCountdown() {
-    let countdown = 3;
+    let countdown = 2; // Reduzido para 2s
     countdownElement.textContent = countdown;
     countdownElement.classList.remove('hidden');
+    countdownElement.style.opacity = '1';
 
     countdownInterval = setInterval(() => {
       countdown--;
       if (countdown > 0) {
         countdownElement.textContent = countdown;
+        countdownElement.style.opacity = '0.7';
       } else {
         clearInterval(countdownInterval);
-        countdownElement.classList.add('hidden');
+        countdownElement.style.opacity = '0';
+        setTimeout(() => countdownElement.classList.add('hidden'), 300);
         captureFace();
       }
     }, 1000);
@@ -177,7 +189,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.width = faceVideo.videoWidth;
     faceCanvas.height = faceVideo.videoHeight;
     faceCanvas.getContext('2d').drawImage(faceVideo, 0, 0);
-    const imageData = faceCanvas.toDataURL('image/jpeg');
+    const imageData = faceCanvas.toDataURL('image/jpeg', 0.9); // Qualidade JPEG otimizada
     confirmationImage.src = imageData;
     confirmationModal.classList.remove('hidden');
     stopStream();
@@ -216,9 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast.textContent = message;
     toast.className = `toast toast-${type}`;
     toast.classList.remove('hidden');
-    setTimeout(() => {
-      toast.classList.add('hidden');
-    }, 3000);
+    setTimeout(() => toast.classList.add('hidden'), 2000);
   }
 
   function stopStream() {
