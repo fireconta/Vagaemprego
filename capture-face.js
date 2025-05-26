@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Carregar modelos
   async function loadModels() {
-    const paths = ['./weights', '/weights'];
+    const paths = ['./weights', '/weights', './assets/weights', '/assets/weights'];
     for (const path of paths) {
       try {
         console.log(`Carregando modelos de: ${path}`);
@@ -54,8 +54,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Calcular nitidez
   function calculateSharpness(canvas, ctx, box) {
     const regionSize = Math.min(box.width, box.height) * 0.6;
-    const x = box.x + box.width / 2 - regionSize / 2;
-    const y = box.y + box.height / 2 - regionSize / 2;
+    const x = Math.max(0, box.x + box.width / 2 - regionSize / 2);
+    const y = Math.max(0, box.y + box.height / 2 - regionSize / 2);
     try {
       const imageData = ctx.getImageData(x, y, regionSize, regionSize);
       const data = imageData.data;
@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return sharpness;
     } catch (error) {
       console.error('Erro ao calcular nitidez:', error);
+      showToast('Erro na análise de nitidez.', 'error');
       return 0;
     }
   }
@@ -137,8 +138,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
+      if (!faceapi.nets.tinyFaceDetector.isLoaded || !faceapi.nets.faceLandmark68Net.isLoaded) {
+        throw new Error('Modelos não carregados');
+      }
+
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 });
       const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
+      console.log(`Detecções: ${detections.length}`);
 
       if (detections.length === 1) {
         const { box } = detections[0].detection;
@@ -187,7 +193,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (error) {
       console.error('Erro na detecção:', error);
+      showToast('Erro na detecção de rosto. Tente novamente.', 'error');
       faceFeedback.innerHTML = '⚠️ Erro na detecção';
+      faceFeedback.classList.remove('hidden');
     }
 
     if (detectionActive) {
@@ -227,11 +235,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
 
-    // Simplificar espelhamento
-    ctx.translate(faceCanvas.width, 0);
-    ctx.scale(-1, 1);
+    // Espelhamento desativado
     ctx.drawImage(faceVideo, 0, 0, faceCanvas.width, faceCanvas.height);
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // Resetar transformação
 
     try {
       const imageData = faceCanvas.toDataURL('image/jpeg', 0.95);
