@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Calcular nitidez
   function calculateSharpness(canvas, ctx, box) {
     try {
-      const regionSize = Math.max(32, Math.min(box.width, box.height) * 0.8); // Garantir tamanho mínimo
+      const regionSize = Math.max(32, Math.min(box.width, box.height) * 0.8);
       const x = Math.max(0, box.x + box.width / 2 - regionSize / 2);
       const y = Math.max(0, box.y + box.height / 2 - regionSize / 2);
       const imageData = ctx.getImageData(x, y, regionSize, regionSize);
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
       const sharpness = count ? laplacianSum / count : 0;
-      const normalizedSharpness = sharpness * (1280 / faceVideo.videoWidth); // Normalização ajustada
+      const normalizedSharpness = sharpness * (1280 / faceVideo.videoWidth);
       console.log(`Nitidez calculada: ${sharpness}, Normalizada: ${normalizedSharpness}`);
       return normalizedSharpness;
     } catch (error) {
@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('Iniciando detecção de face');
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 });
       tempCtx.save();
-      tempCtx.scale(-1, 1); // Inverter para alinhar com o vídeo espelhado
+      tempCtx.scale(-1, 1);
       tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
       tempCtx.restore();
       const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (alignedFrames >= 3) {
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 0.5 || (sharpness > 0.3 && alignedFrames >= 5)) { // Bypass para nitidez marginal
+            if (sharpness > 0.5 || (sharpness > 0.3 && alignedFrames >= 5)) {
               console.log('Captura disparada:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
@@ -297,8 +297,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   confirmButton.addEventListener('click', () => {
     sessionStorage.setItem('facePhoto', confirmationImage.src);
     confirmationModal.classList.add('hidden');
-    console.log('Foto confirmada, redirecionando para index.html');
-    window.location.href = 'index.html';
+    console.log('Foto confirmada, redirecionando para capture-face.html');
+    window.location.href = 'capture-face.html';
   });
 
   closeModalButton.addEventListener('click', () => {
