@@ -1,142 +1,288 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Captura de Rosto</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
-    <style>
-        #face-video {
-            transform: scaleX(-1);
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        #face-canvas {
-            display: none;
-        }
-        #face-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-        .face-oval {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 240px;
-            height: 336px;
-            border: 3px solid red;
-            border-radius: 50%;
-            transition: border-color 0.3s;
-        }
-        .face-oval.aligned {
-            border-color: #00FF00;
-        }
-        #face-instructions {
-            position: absolute;
-            top: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            font-size: 1.5rem;
-            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-        }
-        #face-feedback {
-            position: absolute;
-            bottom: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            font-size: 1.25rem;
-            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-        }
-        #countdown {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 4rem;
-            color: white;
-            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-            transition: opacity 0.3s;
-        }
-        #confirmationModal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-        #confirmationImage {
-            max-width: 80%;
-            max-height: 80%;
-            transition: transform 0.3s;
-        }
-        #confirmationImage.zoomed {
-            transform: scale(1.5);
-        }
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            border-radius: 5px;
-            color: white;
-            font-size: 1rem;
-            z-index: 1000;
-            transition: opacity 0.3s;
-        }
-        .toast-success {
-            background: #4CAF50;
-        }
-        .toast-error {
-            background: #F44336;
-        }
-        #modelLoading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 20px;
-            border-radius: 5px;
-            z-index: 1000;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Captura de Rosto</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(to bottom, #1e40af, #60a5fa);
+      font-family: 'Poppins', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+    }
+    .capture-container {
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+      padding: 2.5rem;
+      max-width: 800px;
+      width: 90%;
+      text-align: center;
+    }
+    .fullscreen-video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.9);
+    }
+    .capture-button {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1001;
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(to bottom, #ef4444, #dc2626);
+      border: 4px solid white;
+      border-radius: 50%;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .capture-button.enabled {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.1); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+    .capture-button:hover {
+      transform: translateX(-50%) scale(1.15);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+    }
+    .capture-button:active {
+      transform: translateX(-50%) scale(0.95);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    .capture-button::before {
+      content: '';
+      width: 60px;
+      height: 60px;
+      background: white;
+      border-radius: 50%;
+    }
+    .confirmation-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1003;
+    }
+    .confirmation-modal img {
+      max-width: 85%;
+      max-height: 85%;
+      border-radius: 16px;
+      cursor: zoom-in;
+      transition: transform 0.3s, border-color 0.3s;
+      border: 3px solid #3b82f6;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    .confirmation-modal img:focus {
+      border-color: #06b6d4;
+    }
+    .confirmation-modal img.zoomed {
+      transform: scale(1.6);
+    }
+    .confirmation-modal button.close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      font-size: 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .confirmation-modal button.close:hover {
+      background: #dc2626;
+    }
+    .confirmation-modal .buttons {
+      position: absolute;
+      bottom: 24px;
+      display: flex;
+      gap: 1rem;
+    }
+    .confirmation-modal .modal-button {
+      background: #3b82f6;
+      border-radius: 8px;
+      padding: 12px 24px;
+      font-size: 18px;
+      font-weight: 600;
+      color: white;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .confirmation-modal .modal-button:hover {
+      background: #2563eb;
+      transform: translateY(-2px);
+    }
+    .confirmation-modal .modal-button.confirm {
+      background: #10b981;
+    }
+    .confirmation-modal .modal-button.confirm:hover {
+      background: #059669;
+    }
+    .face-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1001;
+      pointer-events: none;
+    }
+    .face-oval {
+      position: absolute;
+      border: 4px dashed #10b981;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
+    }
+    .face-instructions {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: clamp(16px, 2.5vw, 18px);
+      font-weight: 600;
+      z-index: 1002;
+      animation: slideDown 0.5s ease-out;
+      word-break: nowrap;
+      max-width: 90%;
+    }
+    @keyframes slideDown {
+      from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+    .face-feedback {
+      position: fixed;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0.75);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: clamp(14px, 2vw, 16px);
+      font-weight: 500;
+      z-index: 1001;
+      word-break: break-word;
+      max-width: 90%;
+    }
+    .countdown {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: clamp(40px, 5vw, 48px);
+      font-weight: 700;
+      z-index: 1002;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 16px 32px;
+      border-radius: 20px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: white;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 600;
+      z-index: 1005;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s;
+    }
+    .toast-error { background: #ef4444; }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; }
+    }
+    .model-loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .model-loading::after {
+      content: '';
+      width: 20px;
+      height: 20px;
+      border: 3px solid white;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
-<body class="bg-gray-900 flex items-center justify-center min-h-screen">
-    <div class="relative w-full h-screen max-w-4xl">
-        <video id="face-video" class="absolute inset-0 hidden" autoplay playsinline></video>
-        <canvas id="face-canvas"></canvas>
-        <div id="face-overlay"></div>
-        <div id="face-instructions" class="hidden">Alinhe seu rosto no oval</div>
-        <div id="face-feedback" class="hidden"></div>
-        <div id="countdown" class="hidden"></div>
-        <div id="confirmationModal" class="hidden">
-            <div class="bg-white p-6 rounded-lg shadow-lg">
-                <img id="confirmationImage" src="" alt="Captured Face">
-                <div class="mt-4 flex justify-center space-x-4">
-                    <button class="retake bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Repetir</button>
-                    <button class="confirm bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">Confirmar</button>
-                    <button class="close bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Fechar</button>
-                </div>
-            </div>
-        </div>
-        <div id="toast" class="hidden"></div>
-        <div id="modelLoading" class="hidden">Carregando modelos...</div>
+<body>
+  <div class="capture-container">
+    <h1 class="text-3xl font-bold mb-6 text-gray-900">Captura de Rosto</h1>
+    <p class="text-gray-700 mb-4">Posicione seu rosto dentro do oval e clique no botão de captura quando estiver pronto.</p>
+    <video id="face-video" class="hidden" autoplay playsinline></video>
+    <canvas id="face-canvas" class="hidden"></canvas>
+    <div id="face-overlay" class="face-overlay"></div>
+    <div id="face-instructions" class="face-instructions hidden">Posicione seu rosto no oval maior</div>
+    <div id="face-feedback" class="face-feedback hidden"></div>
+    <div id="countdown" class="countdown hidden"></div>
+    <div id="confirmationModal" class="confirmation-modal hidden">
+      <img id="confirmationImage" src="" alt="Foto capturada">
+      <button class="close">×</button>
+      <div class="buttons">
+        <button class="modal-button retake">Repetir</button>
+        <button class="modal-button confirm">Confirmar</button>
+      </div>
     </div>
-    <script src="capture-face.js"></script>
+    <div id="toast" class="toast hidden"></div>
+  </div>
+  <div id="modelLoading" class="model-loading hidden">Carregando modelos...</div>
+  <script src="capture-face.js"></script>
 </body>
 </html>
