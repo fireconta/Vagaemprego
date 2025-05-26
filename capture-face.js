@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
   // Verificar se o protocolo é HTTPS
   if (window.location.protocol !== 'https:') {
-    console.warn('Aviso: getUserMedia requer HTTPS. Execute o site em um servidor HTTPS.');
+    console.error('Erro: getUserMedia requer HTTPS. Execute o site em um servidor HTTPS.');
+    showToast('Este site requer HTTPS para acessar a câmera. Use um servidor seguro ou ngrok para testes.', 'error', false);
+    return;
   }
 
   const faceVideo = document.getElementById('face-video');
@@ -32,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast.innerHTML = message + (showRetry ? ' <button class="retry-button">Tentar novamente</button>' : '');
     toast.className = `toast toast-${type}`;
     toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 5000);
+    setTimeout(() => toast.classList.add('hidden'), 7000); // Aumentado para 7s para mais visibilidade
     console.log(`Toast exibido: ${message} (${type})`);
     if (showRetry) {
       toast.querySelector('.retry-button').addEventListener('click', initialize);
@@ -48,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadModels(attempt = 1, maxAttempts = 3) {
-    const path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/'; // Corrigido o caminho
+    const path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/';
     try {
       console.log(`Tentativa ${attempt} de carregar modelos de: ${path}`);
       await Promise.all([
@@ -73,23 +75,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       stopStream();
       faceVideo.srcObject = null;
-      faceVideo.classList.add('hidden');
+      faceVideo.classList.add('hidden'); // Garantir que começa oculto
       isCapturing = false;
       detectionActive = false;
 
       const constraints = {
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
+          facingMode: 'user' // Simplificado para maior compatibilidade
         }
       };
 
       console.log(`Tentativa ${attempt} de iniciar câmera:`, constraints);
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       faceVideo.srcObject = stream;
-      faceVideo.classList.remove('hidden');
+      faceVideo.classList.remove('hidden'); // Remover hidden imediatamente
       faceVideo.classList.add('fullscreen-video');
+
+      // Forçar visibilidade do vídeo
+      faceVideo.style.display = 'block';
+      faceVideo.style.visibility = 'visible';
 
       faceOverlay.innerHTML = '';
       const oval = document.createElement('div');
@@ -118,12 +122,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           tempCanvas.height = faceVideo.videoHeight;
           resolve();
         };
-        faceVideo.onerror = () => {
-          reject(new Error('Erro ao carregar vídeo'));
+        faceVideo.onerror = (err) => {
+          console.error('Erro no vídeo:', err);
+          reject(new Error('Erro ao carregar o stream de vídeo'));
         };
       });
 
-      await faceVideo.play();
+      await faceVideo.play().catch(err => {
+        console.error('Erro ao iniciar reprodução do vídeo:', err);
+        throw new Error('Falha ao iniciar o vídeo');
+      });
       console.log('Vídeo iniciado');
       detectionActive = true;
       detectFaces();
@@ -136,7 +144,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       let errorMessage = 'Erro ao iniciar a câmera. Verifique a conexão e tente novamente.';
       if (error.name === 'NotAllowedError') {
-        errorMessage = 'Permissão de câmera negada. Habilite nas configurações do navegador e tente novamente.';
+        errorMessage = 'Permissão de câmera negada. Habilite a câmera nas configurações do navegador e tente novamente.';
       } else if (error.name === 'NotFoundError') {
         errorMessage = 'Nenhuma câmera encontrada. Conecte uma câmera e tente novamente.';
       } else if (error.name === 'NotReadableError') {
@@ -172,7 +180,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 }); // Aumentado inputSize
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
       tempCtx.save();
       tempCtx.scale(-1, 1);
       tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
@@ -246,7 +254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (detectionActive) {
-      requestAnimationFrame(detectFaces); // Usar requestAnimationFrame para melhor desempenho
+      requestAnimationFrame(detectFaces);
     }
   }
 
@@ -305,7 +313,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function captureFace() {
     if (faceVideo.readyState < 2 || faceVideo.videoWidth === 0 || faceVideo.videoHeight === 0) {
-      showToast('Vídeo não está pronto.', 'error', true);
+      showToast('Vídeo não está pronto. Verifique a câmera e tente novamente.', 'error', true);
       console.error('Vídeo não pronto:', {
         readyState: faceVideo.readyState,
         width: faceVideo.videoWidth,
@@ -345,7 +353,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!imageData || imageData === 'data:,') {
         throw new Error('Imagem inválida');
       }
-      confirmationImage.src = imageData; // Corrigido o erro de sintaxe
+      confirmationImage.src = imageData;
       confirmationModal.classList.remove('hidden');
       console.log('Foto capturada');
     } catch (error) {
