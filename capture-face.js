@@ -21,7 +21,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   let tempCanvas = document.createElement('canvas');
   let tempCtx = tempCanvas.getContext('2d');
 
-  // Carregar modelos via CDN com timeout
   async function loadModels() {
     const path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
     try {
@@ -55,7 +54,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Calcular nitidez
   function calculateSharpness(canvas, ctx, box) {
     try {
       const regionSize = Math.max(32, Math.min(box.width, box.height) * 0.8);
@@ -91,7 +89,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Iniciar captura
   async function startFaceCapture() {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -143,7 +140,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Detecção de faces
   async function detectFaces() {
     if (!detectionActive || faceVideo.paused || faceVideo.ended || isCapturing) {
       console.log('Detecção interrompida:', { detectionActive, isCapturing, paused: faceVideo.paused, ended: faceVideo.ended });
@@ -225,7 +221,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Contagem regressiva
   function startCountdown() {
     let countdown = 1;
     countdownElement.textContent = countdown;
@@ -243,7 +238,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 200);
   }
 
-  // Capturar foto
   function captureFace() {
     if (faceVideo.readyState < 2) {
       showToast('Vídeo não está pronto.', 'error');
@@ -258,7 +252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
 
-    ctx.drawImage(faceVideo, 0, 0); // Sem transformação, já que o vídeo está corrigido pelo CSS
+    ctx.drawImage(faceVideo, 0, 0);
 
     try {
       const imageData = faceCanvas.toDataURL('image/jpeg', 0.95);
@@ -285,7 +279,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     isCapturing = false;
   }
 
-  // Modal
   retakeButton.addEventListener('click', () => {
     confirmationModal.classList.add('hidden');
     confirmationImage.src = '';
@@ -314,7 +307,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Zoom da imagem alterado');
   });
 
-  // Funções auxiliares
   function showToast(message, type) {
     toast.textContent = message;
     toast.className = `toast toast-${type}`;
