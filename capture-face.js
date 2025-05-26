@@ -28,6 +28,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   confirmationImage.src = '';
   sessionStorage.removeItem('facePhoto');
 
+  // Initialize particles.js
+  function initParticles() {
+    particlesJS('particles-js', {
+      particles: {
+        number: { value: 100, density: { enable: true, value_area: 800 } },
+        color: { value: '#00ff00' },
+        shape: { type: 'circle' },
+        opacity: { value: 0.5, random: true },
+        size: { value: 3, random: true },
+        line_linked: { enable: false },
+        move: {
+          enable: true,
+          speed: 6,
+          direction: 'none',
+          random: true,
+          straight: false,
+          out_mode: 'out',
+          bounce: false
+        }
+      },
+      interactivity: {
+        detect_on: 'canvas',
+        events: { onhover: { enable: false }, onclick: { enable: false }, resize: true },
+      },
+      retina_detect: true
+    });
+  }
+
   async function loadModels() {
     const path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
     try {
@@ -193,7 +221,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('Iniciando detecção de face');
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 });
       tempCtx.save();
-      tempCtx.scale(-1, 1);
+      tempCtx.scale(-1, 1); // Corrige inversão no canvas
       tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
       tempCtx.restore();
       const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
@@ -212,12 +240,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       const ovalCenterX = screenWidth / 2;
       const ovalCenterY = screenHeight / 2;
 
+      // Controlar partículas
+      if (window.pJSDom && window.pJSDom.length) {
+        window.pJSDom[0].pJS.fn.particlesEmpty();
+      }
+
       if (detections.length === 1) {
         const { box } = detections[0].detection;
         const landmarks = detections[0].landmarks;
         const nose = landmarks.getNose()[0];
 
-        const noseScreenX = screenWidth - nose.x * scaleX;
+        const noseScreenX = screenWidth - nose.x * scaleX; // Ajustado para inversão
         const noseScreenY = nose.y * scaleY;
         const distanceToOval = Math.sqrt(
           (noseScreenX - ovalCenterX) ** 2 + (noseScreenY - ovalCenterY) ** 2
@@ -235,7 +268,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           faceDetected = true;
           console.log('Rosto alinhado:', { alignedFrames, distanceToOval, boxWidth: box.width });
 
+          // Mudar oval para verde e ativar partículas
           if (alignedFrames >= 3) {
+            oval.classList.add('aligned');
+            if (!window.pJSDom || !window.pJSDom.length) {
+              initParticles();
+            }
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
             if (sharpness > 0.03) {
@@ -253,6 +291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
         } else {
           alignedFrames = 0;
+          oval.classList.remove('aligned');
           faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Alinhe o rosto no oval' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
           captureButton.classList.add('disabled');
@@ -262,6 +301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } else {
         alignedFrames = 0;
+        oval.classList.remove('aligned');
         faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
         faceFeedback.classList.remove('hidden');
         captureButton.classList.add('disabled');
@@ -313,7 +353,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
 
-    ctx.drawImage(faceVideo, 0, 0);
+    ctx.save();
+    ctx.scale(-1, 1); // Corrige inversão na captura
+    ctx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
+    ctx.restore();
 
     try {
       const imageData = faceCanvas.toDataURL('image/jpeg', 0.95);
