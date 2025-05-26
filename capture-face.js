@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isCapturing = false;
   let lastCaptureTime = 0;
   let alignedFrames = 0;
+  let detectionActive = false;
 
   // Carregar modelos
   async function loadModels() {
@@ -75,7 +76,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           count++;
         }
       }
-      return count ? laplacianSum / count : 0;
+      const sharpness = count ? laplacianSum / count : 0;
+      console.log(`Nitidez calculada: ${sharpness}`);
+      return sharpness;
     } catch (error) {
       console.error('Erro ao calcular nitidez:', error);
       return 0;
@@ -108,63 +111,87 @@ document.addEventListener('DOMContentLoaded', async () => {
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
 
-      faceVideo.addEventListener('play', async () => {
+      faceVideo.addEventListener('play', () => {
+        if (faceVideo.videoWidth === 0 || faceVideo.videoHeight === 0) {
+          console.error('Dimensões do vídeo inválidas');
+          showToast('Erro na câmera. Tente novamente.', 'error');
+          stopStream();
+          return;
+        }
+
         tempCanvas.width = faceVideo.videoWidth;
         tempCanvas.height = faceVideo.videoHeight;
-
-        const detectionInterval = setInterval(async () => {
-          if (!faceVideo.paused && !faceVideo.ended && !isCapturing) {
-            const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 });
-            const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
-
-            if (detections.length === 1) {
-              const { box } = detections[0].detection;
-              const landmarks = detections[0].landmarks;
-              const nose = landmarks.getNose()[0];
-
-              const videoWidth = faceVideo.videoWidth;
-              const videoHeight = faceVideo.videoHeight;
-              const centerX = videoWidth / 2;
-              const centerY = videoHeight / 2;
-              const distanceToCenter = Math.sqrt((nose.x - centerX) ** 2 + (nose.y - centerY) ** 2);
-
-              if (distanceToCenter < videoWidth * 0.1 && box.width > videoWidth * 0.2) {
-                alignedFrames++;
-                oval.classList.add('aligned');
-                faceFeedback.innerHTML = '✅ Rosto alinhado!';
-                faceFeedback.classList.remove('hidden');
-
-                if (alignedFrames >= 5) {
-                  tempCtx.drawImage(faceVideo, 0, 0);
-                  const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
-
-                  if (sharpness > 60 && Date.now() - lastCaptureTime > 5000) {
-                    faceFeedback.innerHTML = '📸 Capturando...';
-                    isCapturing = true;
-                    clearInterval(detectionInterval);
-                    startCountdown();
-                  } else {
-                    faceFeedback.innerHTML = '🌫️ Ajuste a iluminação.';
-                  }
-                }
-              } else {
-                alignedFrames = 0;
-                oval.classList.remove('aligned');
-                faceFeedback.innerHTML = '↔️ Centralize o rosto.';
-                faceFeedback.classList.remove('hidden');
-              }
-            } else {
-              alignedFrames = 0;
-              oval.classList.remove('aligned');
-              faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado.' : '⚠️ Apenas um rosto.';
-              faceFeedback.classList.remove('hidden');
-            }
-          }
-        }, 300);
+        detectionActive = true;
+        detectFaces();
       });
     } catch (error) {
       showToast('Erro ao acessar a câmera. Verifique permissões.', 'error');
       console.error('Erro na câmera:', error);
+    }
+  }
+
+  // Detecção de rosto com requestAnimationFrame
+  async function detectFaces() {
+    if (!detectionActive || faceVideo.paused || faceVideo.ended || isCapturing) {
+      return;
+    }
+
+    try {
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 });
+      const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
+
+      if (detections.length === 1) {
+        const { box } = detections[0].detection;
+        const landmarks = detections[0].landmarks;
+        const nose = landmarks.getNose()[0];
+
+        const videoWidth = faceVideo.videoWidth;
+        const videoHeight = faceVideo.videoHeight;
+        const centerX = videoWidth / 2;
+        const centerY = videoHeight / 2;
+        const distanceToCenter = Math.sqrt((nose.x - centerX) ** 2 + (nose.y - centerY) ** 2);
+
+        console.log(`Distância ao centro: ${distanceToCenter}, Largura da caixa: ${box.width}`);
+
+        if (distanceToCenter < videoWidth * 0.12 && box.width > videoWidth * 0.18) {
+          alignedFrames++;
+          faceOverlay.firstChild.classList.add('aligned');
+          faceFeedback.innerHTML = '✅ Rosto alinhado!';
+          faceFeedback.classList.remove('hidden');
+
+          if (alignedFrames >= 4) {
+            tempCtx.drawImage(faceVideo, 0, 0);
+            const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
+
+            if (sharpness > 50 && Date.now() - lastCaptureTime > 5000) {
+              faceFeedback.innerHTML = '📸 Capturando...';
+              isCapturing = true;
+              detectionActive = false;
+              startCountdown();
+              return;
+            } else {
+              faceFeedback.innerHTML = '🌫️ Melhore a iluminação';
+            }
+          }
+        } else {
+          alignedFrames = 0;
+          faceOverlay.firstChild.classList.remove('aligned');
+          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.12 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
+          faceFeedback.classList.remove('hidden');
+        }
+      } else {
+        alignedFrames = 0;
+        faceOverlay.firstChild.classList.remove('aligned');
+        faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
+        faceFeedback.classList.remove('hidden');
+      }
+    } catch (error) {
+      console.error('Erro na detecção:', error);
+      faceFeedback.innerHTML = '⚠️ Erro na detecção';
+    }
+
+    if (detectionActive) {
+      setTimeout(() => requestAnimationFrame(detectFaces), 250);
     }
   }
 
@@ -188,11 +215,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Capturar foto
   function captureFace() {
-    // Verificar se o vídeo está pronto
     if (faceVideo.readyState < 2) {
       showToast('Vídeo não está pronto. Tente novamente.', 'error');
       isCapturing = false;
-      startFaceCapture();
+      detectionActive = true;
+      detectFaces();
       return;
     }
 
@@ -200,13 +227,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
 
-    // Desenhar a imagem com espelhamento corrigido
     ctx.save();
     ctx.scale(-1, 1);
     ctx.drawImage(faceVideo, -faceCanvas.width, 0, faceCanvas.width, faceCanvas.height);
     ctx.restore();
 
-    // Gerar a imagem
     try {
       const imageData = faceCanvas.toDataURL('image/jpeg', 0.95);
       if (!imageData || imageData === 'data:,') {
@@ -218,7 +243,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('Erro ao gerar imagem:', error);
       showToast('Falha ao capturar a imagem. Tente novamente.', 'error');
       isCapturing = false;
-      startFaceCapture();
+      detectionActive = true;
+      detectFaces();
       return;
     }
 
