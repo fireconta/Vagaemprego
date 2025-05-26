@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       console.log('Iniciando detecção de face');
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 64, scoreThreshold: 0.1 });
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.5 });
       const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
       console.log(`Detecções: ${detections.length}`);
 
@@ -254,10 +254,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
 
-    ctx.drawImage(faceVideo, 0, 0);
+    // Inverter a imagem no canvas para corrigir o espelhamento
+    ctx.scale(-1, 1);
+    ctx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
+    ctx.scale(-1, 1); // Restaurar a transformação
 
     try {
-      const imageData = faceCanvas.toDataURL('image/jpeg', 0.8);
+      const imageData = faceCanvas.toDataURL('image/jpeg', 0.95);
       if (!imageData || imageData === 'data:,') {
         throw new Error('Imagem inválida');
       }
