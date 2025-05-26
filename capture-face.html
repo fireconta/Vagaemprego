@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Captura de Rosto</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      background: linear-gradient(to bottom, #1e40af, #60a5fa);
-      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to top, rgb(96 165 250), rgb(30 64));
+      font-family: Poppins, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -18,7 +18,7 @@
       margin: 0;
     }
     .capture-container {
-      background: #ffffff;
+      background: rgb(255 255 255);
       border-radius: 24px;
       box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
       padding: 2.5rem;
@@ -55,11 +55,11 @@
       border-radius: 16px;
       cursor: zoom-in;
       transition: transform 0.3s, border-color 0.3s;
-      border: 3px solid #3b82f6;
+      border: 3px solid rgb(59 130 246);
       box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
     }
     .confirmation-modal img:focus {
-      border-color: #06b6d4;
+      border-color: rgb(6 182 212);
     }
     .confirmation-modal img.zoomed {
       transform: scale(1.6);
@@ -68,7 +68,7 @@
       position: absolute;
       top: 24px;
       right: 24px;
-      background: #ef4444;
+      background: rgb(239 68 68);
       color: white;
       border: none;
       border-radius: 50%;
@@ -79,7 +79,7 @@
       transition: background 0.2s;
     }
     .confirmation-modal button.close:hover {
-      background: #dc2626;
+      background: rgb(220 38 38);
     }
     .confirmation-modal .buttons {
       position: absolute;
@@ -88,7 +88,7 @@
       gap: 1rem;
     }
     .confirmation-modal .modal-button {
-      background: #3b82f6;
+      background: rgb(59 130 246);
       border-radius: 8px;
       padding: 12px 24px;
       font-size: 18px;
@@ -97,14 +97,14 @@
       transition: background 0.2s, transform 0.2s;
     }
     .confirmation-modal .modal-button:hover {
-      background: #2563eb;
+      background: rgb(37 99 235);
       transform: translateY(-2px);
     }
     .confirmation-modal .modal-button.confirm {
-      background: #10b981;
+      background: rgb(16 185 129);
     }
     .confirmation-modal .modal-button.confirm:hover {
-      background: #059669;
+      background: rgb(5 150 105);
     }
     .face-overlay {
       position: fixed;
@@ -117,7 +117,7 @@
     }
     .face-oval {
       position: absolute;
-      border: 4px dashed #ef4444;
+      border: 4px dashed rgb(239 68 68);
       border-radius: 50%;
       animation: pulse 2s infinite;
       box-shadow: 0 0 16px rgba(239, 68, 68, 0.6);
@@ -183,13 +183,14 @@
       padding: 12px 24px;
       border-radius: 8px;
       color: white;
-      font-family: 'Poppins', sans-serif;
+      font-family: Poppins, sans-serif;
       font-weight: 600;
       z-index: 1005;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s;
     }
-    .toast-error { background: #ef4444; }
+    .toast-error { background: rgb(239 68 68); }
+    .toast-success { background: rgb(16 185 129); }
     @keyframes slideIn {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
@@ -224,6 +225,35 @@
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
+    }
+    .capture-button {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgb(59 130 246);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+      z-index: 1002;
+    }
+    .capture-button:hover {
+      background: rgb(37 99 235);
+      transform: translateX(-50%) translateY(-2px);
+    }
+    .capture-button.enabled {
+      background: rgb(16 185 129);
+    }
+    .capture-button.enabled:hover {
+      background: rgb(5 150 105);
+    }
+    .capture-button.disabled {
+      background: rgb(107 114 128);
+      cursor: not-allowed;
     }
   </style>
 </head>
