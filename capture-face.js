@@ -2,7 +2,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const faceVideo = document.getElementById('face-video');
   const faceCanvas = document.getElementById('face-canvas');
   const faceOverlay = document.getElementById('face-overlay');
-  const instructionsPanel = document.getElementById('instructions-panel');
   const faceFeedback = document.getElementById('face-feedback');
   const countdownElement = document.getElementById('countdown');
   const confirmationModal = document.getElementById('confirmationModal');
@@ -86,7 +85,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       faceVideo.srcObject = stream;
       faceVideo.classList.remove('hidden');
       faceVideo.classList.add('fullscreen-video');
-      instructionsPanel.classList.remove('hidden');
 
       faceOverlay.innerHTML = '';
       const oval = document.createElement('div');
@@ -342,7 +340,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!imageData || imageData === 'data:,') {
         throw new Error('Imagem inválida');
       }
-      confirmationImage.src = imageData;
+      confirmationImage.src = imageData);
       confirmationModal.classList.remove('hidden');
       console.log('Foto capturada');
     } catch (error) {
@@ -355,7 +353,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     stopStream();
-    instructionsPanel.classList.add('hidden');
     faceFeedback.classList.add('hidden');
     faceOverlay.innerHTML = '';
     isCapturing = false;
