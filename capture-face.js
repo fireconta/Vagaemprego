@@ -235,20 +235,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function startCountdown() {
-    let countdown = 1;
+    let countdown = 2;
     countdownElement.textContent = countdown;
     countdownElement.classList.remove('hidden');
     countdownElement.style.opacity = '1';
 
     const countdownInterval = setInterval(() => {
       countdown--;
+      countdownElement.textContent = countdown;
       if (countdown <= 0) {
         clearInterval(countdownInterval);
         countdownElement.style.opacity = '0';
         setTimeout(() => countdownElement.classList.add('hidden'), 300);
         captureFace();
       }
-    }, 200);
+    }, 1000);
   }
 
   function captureFace() {
