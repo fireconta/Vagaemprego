@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Calcular nitidez
   function calculateSharpness(canvas, ctx, box) {
     try {
-      const regionSize = Math.min(box.width, box.height) * 0.6;
+      const regionSize = Math.min(box.width, box.height) * 0.8; // Aumentado para cobrir mais área
       const x = Math.max(0, box.x + box.width / 2 - regionSize / 2);
       const y = Math.max(0, box.y + box.height / 2 - regionSize / 2);
       const imageData = ctx.getImageData(x, y, regionSize, regionSize);
@@ -81,8 +81,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
       const sharpness = count ? laplacianSum / count : 0;
-      console.log(`Nitidez calculada: ${sharpness}`);
-      return sharpness;
+      const normalizedSharpness = sharpness * (640 / faceVideo.videoWidth); // Normalizar com base na resolução
+      console.log(`Nitidez calculada: ${sharpness}, Normalizada: ${normalizedSharpness}`);
+      return normalizedSharpness;
     } catch (error) {
       console.error('Erro ao calcular nitidez:', error);
       showToast('Erro na análise de nitidez.', 'error');
@@ -155,7 +156,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       console.log('Iniciando detecção de face');
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.5 });
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 });
       const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
       console.log(`Detecções: ${detections.length}`);
 
@@ -170,20 +171,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const centerY = videoHeight / 2;
         const distanceToCenter = Math.sqrt((nose.x - centerX) ** 2 + (nose.y - centerY) ** 2);
 
-        console.log(`Distância ao centro: ${distanceToCenter}, Largura da caixa: ${box.width}`);
+        console.log(`Distância ao centro: ${distanceToCenter}, Largura da caixa: ${box.width}, Resolução: ${videoWidth}x${videoHeight}`);
 
-        if (distanceToCenter < videoWidth * 0.35 && box.width > videoWidth * 0.05) {
+        if (distanceToCenter < videoWidth * 0.4 && box.width > videoWidth * 0.03) {
           alignedFrames++;
           faceOverlay.firstChild.classList.add('aligned');
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
-          console.log('Rosto alinhado:', { alignedFrames });
+          console.log('Rosto alinhado:', { alignedFrames, distanceToCenter, boxWidth: box.width });
 
-          if (alignedFrames >= 1) {
+          if (alignedFrames >= 3) {
             tempCtx.drawImage(faceVideo, 0, 0);
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 2 && Date.now() - lastCaptureTime > 1000) {
+            if (sharpness > 1 && Date.now() - lastCaptureTime > 1000) {
               console.log('Captura disparada:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
@@ -191,14 +192,14 @@ document.addEventListener('DOMContentLoaded', async () => {
               startCountdown();
               return;
             } else {
-              faceFeedback.innerHTML = '🌫️ Iluminação fraca, aproxime-se de uma luz';
+              faceFeedback.innerHTML = `🌫️ Iluminação fraca, aproxime-se de uma luz (nitidez: ${sharpness.toFixed(2)})`;
               console.log('Nitidez insuficiente ou captura recente:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
             }
           }
         } else {
           alignedFrames = 0;
           faceOverlay.firstChild.classList.remove('aligned');
-          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.35 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
+          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.4 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
           console.log('Rosto desalinhado:', { distanceToCenter, boxWidth: box.width });
         }
