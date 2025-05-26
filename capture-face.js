@@ -42,40 +42,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function initParticles() {
-    console.log('Inicializando particles.js');
-    if (typeof particlesJS === 'undefined') {
-      console.error('particles.js não carregado');
-      showToast('Erro: Partículas não carregadas.', 'error', true);
-      return;
-    }
-    particlesJS('particles-js', {
-      particles: {
-        number: { value: 30, density: { enable: true, value_area: 800 } }, // Reduzido para performance
-        color: { value: '#10b981' },
-        shape: { type: 'circle' },
-        opacity: { value: 0.2, random: true },
-        size: { value: 2, random: true },
-        line_linked: { enable: false },
-        move: {
-          enable: true,
-          speed: 3,
-          direction: 'none',
-          random: true,
-          straight: false,
-          out_mode: 'out',
-          bounce: false
-        }
-      },
-      interactivity: {
-        detect_on: 'canvas',
-        events: { onhover: { enable: false }, onclick: { enable: false }, resize: true },
-      },
-      retina_detect: true
-    });
-    console.log('particles.js inicializado');
-  }
-
   async function loadModels(attempt = 1, maxAttempts = 3) {
     const path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/weights/';
     try {
@@ -84,8 +50,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         faceapi.nets.tinyFaceDetector.loadFromUri(path),
         faceapi.nets.faceLandmark68Net.loadFromUri(path)
       ]);
-      console.log('Modelos carregados');
-      showToast('Modelos carregados com sucesso!', 'success');
+      console.log('Modelos carregados com sucesso');
+      showToast('Modelos carregados!', 'success');
       return true;
     } catch (error) {
       console.error(`Erro ao carregar modelos (tentativa ${attempt}):`, error);
@@ -94,21 +60,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         await new Promise(resolve => setTimeout(resolve, 3000));
         return loadModels(attempt + 1, maxAttempts);
       }
-      throw new Error(`Falha após ${maxAttempts} tentativas: ${error.message}`);
+      throw new Error(`Falha ao carregar modelos após ${maxAttempts} tentativas: ${error.message}`);
     }
   }
 
-  async function startFaceCapture() {
+  async function startFaceCapture(attempt = 1, maxAttempts = 3) {
     try {
       stopStream();
       faceVideo.srcObject = null;
       faceVideo.classList.add('hidden');
       isCapturing = false;
       detectionActive = false;
-
-      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-        throw new Error('Câmera requer HTTPS ou localhost');
-      }
 
       const constraints = {
         video: {
@@ -118,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       };
 
-      console.log('Solicitando acesso à câmera:', constraints);
+      console.log(`Tentativa ${attempt} de iniciar câmera:`, constraints);
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       faceVideo.srcObject = stream;
       faceVideo.classList.remove('hidden');
@@ -156,29 +118,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
       });
 
-      faceVideo.play().then(() => {
-        console.log('Vídeo iniciado');
-        detectionActive = true;
-        initParticles();
-        detectFaces();
-      }).catch(error => {
-        console.error('Erro ao reproduzir vídeo:', error);
-        showToast('Erro ao iniciar vídeo. Verifique permissões.', 'error', true);
-        faceVideo.classList.add('hidden');
-        stopStream();
-      });
+      await faceVideo.play();
+      console.log('Vídeo iniciado');
+      detectionActive = true;
+      detectFaces();
     } catch (error) {
-      console.error('Erro ao iniciar câmera:', error);
-      let errorMessage = 'Erro ao acessar a câmera. Permita o acesso e tente novamente.';
+      console.error(`Erro ao iniciar câmera (tentativa ${attempt}):`, error);
+      if (attempt < maxAttempts) {
+        console.log(`Tentando novamente em 3 segundos...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return startFaceCapture(attempt + 1, maxAttempts);
+      }
+      let errorMessage = 'Erro ao iniciar a câmera. Verifique a conexão e tente novamente.';
       if (error.name === 'NotAllowedError') {
-        errorMessage = 'Permissão de câmera negada. Habilite nas configurações.';
+        errorMessage = 'Permissão de câmera negada. Habilite nas configurações do navegador.';
       } else if (error.name === 'NotFoundError') {
         errorMessage = 'Nenhuma câmera encontrada. Conecte uma câmera.';
-      } else if (error.message.includes('HTTPS')) {
-        errorMessage = 'Acesse via HTTPS ou localhost.';
+      } else if (error.name === 'NotReadableError') {
+        errorMessage = 'Câmera em uso por outro aplicativo. Feche-o e tente novamente.';
       }
       showToast(errorMessage, 'error', true);
       faceVideo.classList.add('hidden');
+      stopStream();
     }
   }
 
@@ -354,7 +315,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.width = faceVideo.videoWidth;
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
-
     ctx.save();
     ctx.scale(-1, 1);
     ctx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
@@ -380,16 +340,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!imageData || imageData === 'data:,') {
         throw new Error('Imagem inválida');
       }
-      confirmationImage.src = imageData;
+      confirmationImage.src = imageData);
       confirmationModal.classList.remove('hidden');
       console.log('Foto capturada');
-      if (window.pJSDom && window.pJSDom.length) {
-        window.pJSDom[0].pJS.fn.particlesEmpty();
-        console.log('Partículas limpas após captura');
-      }
     } catch (error) {
       console.error('Erro ao capturar imagem:', error);
-      showToast('Falha ao capturar imagem.', 'error', true);
+      showToast('Erro ao capturar a foto.', 'error', true);
       isCapturing = false;
       detectionActive = true;
       detectFaces();
@@ -439,7 +395,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await startFaceCapture();
     } catch (error) {
       console.error('Erro na inicialização:', error);
-      showToast('Erro ao iniciar. Verifique conexão e permissões.', 'error', true);
+      showToast('Erro ao iniciar. Verifique a conexão.', 'error', true);
     } finally {
       modelLoading.classList.add('hidden');
     }
