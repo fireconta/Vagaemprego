@@ -27,10 +27,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast.innerHTML = message + (showRetry ? ' <button class="retry-button">Tentar novamente</button>' : '');
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 5000);
+    console.error(`Erro exibido: ${message}`);
     if (showRetry) {
       toast.querySelector('.retry-button').addEventListener('click', initialize);
     }
-    console.error(`Erro exibido: ${message}`);
   }
 
   function stopStream() {
@@ -38,6 +38,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       stream.getTracks().forEach(track => track.stop());
       stream = null;
       console.log('Stream da câmera fechado');
+    }
+  }
+
+  async function checkDevices() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      console.log('Dispositivos de vídeo:', videoDevices);
+      return videoDevices.length > 0 ? videoDevices : null;
+    } catch (error) {
+      console.error('Erro ao listar dispositivos:', error);
+      return null;
     }
   }
 
@@ -70,15 +82,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       isCapturing = false;
       detectionActive = false;
 
-      const constraints = {
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
-        }
-      };
+      // Verificar dispositivos
+      const videoDevices = await checkDevices();
+      if (!videoDevices) {
+        throw new Error('Nenhuma câmera detectada');
+      }
 
+      // Tentar constraints flexíveis primeiro
+      let constraints = { video: { facingMode: 'user' } };
+      if (attempt > 1) {
+        constraints = {
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          }
+        };
+      }
       console.log(`Tentativa ${attempt} de acessar câmera:`, constraints);
+
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       faceVideo.srcObject = stream;
       faceVideo.classList.remove('hidden');
@@ -128,15 +150,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     } catch (error) {
       console.error(`Erro ao acessar câmera (tentativa ${attempt}):`, error);
-      let message = 'Erro ao acessar a câmera. Permita o acesso.';
-      if (error.name === 'NotAllowedError') message = 'Permissão de câmera negada.';
-      if (error.name === 'NotFoundError') message = 'Câmera não encontrada.';
+      let message = 'Erro ao acessar a câmera. Permita o acesso nas configurações do navegador.';
+      if (error.name === 'NotAllowedError') message = 'Permissão de câmera negada. Habilite nas configurações.';
+      if (error.name === 'NotFoundError' || error.message === 'Nenhuma câmera detectada') {
+        message = 'Nenhuma câmera encontrada. Conecte uma câmera.';
+      }
       if (attempt < maxAttempts) {
         console.log(`Tentando novamente em 2 segundos...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
         return startFaceCapture(attempt + 1, maxAttempts);
       }
-      showToast(`${message} Tente novamente.`, true);
+      showToast(message, true);
       faceVideo.classList.add('hidden');
     }
   }
@@ -172,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const distanceToOval = Math.sqrt(
           (noseScreenX - ovalCenterX) ** 2 + (noseScreenY - ovalCenterY) ** 2
         );
-        const maxDistance = Math.min(ovalWidth, ovalHeight) * 0.3;
+        const maxDistance = Math.min(ovalWidth, owlHeight) * 0.3;
 
         if (distanceToOval < maxDistance && box.width > videoWidth * 0.03) {
           alignedFrames++;
@@ -187,7 +211,6 @@ document.addEventListener('DOMContentLoaded', async () => {
               isCapturing = true;
               detectionActive = false;
               startCountdown();
-              return;
             } else {
               faceFeedback.innerHTML = '💡 Melhore a iluminação';
             }
@@ -195,7 +218,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           alignedFrames = 0;
           oval.classList.remove('aligned');
-          faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Centralize o rosto' : '🔍 Aproxime o rosto';
+          faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Centralize o rosto' : '🔍 Aproxime-se';
           faceFeedback.classList.remove('hidden');
         }
       } else {
