@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function calculateSharpness(canvas, ctx, box) {
     try {
-      const regionSize = Math.max(32, Math.min(box.width, box.height) * 0.8);
+      const regionSize = Math.max(64, Math.min(box.width, box.height) * 0.9); // Aumentado para maior robustez
       const x = Math.max(0, box.x + box.width / 2 - regionSize / 2);
       const y = Math.max(0, box.y + box.height / 2 - regionSize / 2);
       const imageData = ctx.getImageData(x, y, regionSize, regionSize);
@@ -79,8 +79,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
       const sharpness = count ? laplacianSum / count : 0;
-      const normalizedSharpness = sharpness * (1280 / faceVideo.videoWidth);
-      console.log(`Nitidez calculada: ${sharpness}, Normalizada: ${normalizedSharpness}`);
+      const normalizedSharpness = sharpness / 1000; // Simplificada para evitar distorções
+      console.log(`Nitidez calculada: ${sharpness}, Normalizada: ${normalizedSharpness}, Região: ${regionSize}x${regionSize}`);
       return normalizedSharpness;
     } catch (error) {
       console.error('Erro ao calcular nitidez:', error);
@@ -165,17 +165,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         const landmarks = detections[0].landmarks;
         const nose = landmarks.getNose()[0];
 
+        // Ajustar oval dinamicamente
+        const oval = faceOverlay.firstChild;
         const videoWidth = faceVideo.videoWidth;
         const videoHeight = faceVideo.videoHeight;
+        const scaleX = window.innerWidth / videoWidth;
+        const scaleY = window.innerHeight / videoHeight;
+        const ovalWidth = box.width * 1.5 * scaleX;
+        const ovalHeight = box.height * 2 * scaleY;
+        const ovalLeft = (videoWidth - box.x - box.width) * scaleX - ovalWidth / 2; // Ajuste para espelhamento
+        const ovalTop = (box.y - box.height * 0.5) * scaleY;
+
+        oval.style.width = `${ovalWidth}px`;
+        oval.style.height = `${ovalHeight}px`;
+        oval.style.left = `${ovalLeft}px`;
+        oval.style.top = `${ovalTop}px`;
+
         const centerX = videoWidth / 2;
         const centerY = videoHeight / 2;
         const distanceToCenter = Math.sqrt((nose.x - centerX) ** 2 + (nose.y - centerY) ** 2);
 
-        console.log(`Distância ao centro: ${distanceToCenter}, Largura da caixa: ${box.width}, Resolução: ${videoWidth}x${videoHeight}`);
+        console.log(`Distância ao centro: ${distanceToCenter}, Caixa: ${box.width}x${box.height}, Oval: ${ovalLeft}x${ovalTop}`);
 
         if (distanceToCenter < videoWidth * 0.4 && box.width > videoWidth * 0.03) {
           alignedFrames++;
-          faceOverlay.firstChild.classList.add('aligned');
+          oval.classList.add('aligned');
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
           console.log('Rosto alinhado:', { alignedFrames, distanceToCenter, boxWidth: box.width });
@@ -183,7 +197,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (alignedFrames >= 3) {
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 0.5 || (sharpness > 0.3 && alignedFrames >= 5)) {
+            if (sharpness > 0.3) { // Reduzido limite
               console.log('Captura disparada:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
@@ -192,12 +206,12 @@ document.addEventListener('DOMContentLoaded', async () => {
               return;
             } else {
               faceFeedback.innerHTML = `🌫️ Iluminação fraca, aproxime-se de uma luz (nitidez: ${sharpness.toFixed(2)})`;
-              console.log('Nitidez insuficiente ou captura recente:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
+              console.log('Nitidez insuficiente:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
             }
           }
         } else {
           alignedFrames = 0;
-          faceOverlay.firstChild.classList.remove('aligned');
+          oval.classList.remove('aligned');
           faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.4 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
           console.log('Rosto desalinhado:', { distanceToCenter, boxWidth: box.width });
