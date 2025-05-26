@@ -6,6 +6,7 @@
   <title>Captura de Rosto</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <script type="text/javascript">
@@ -45,17 +46,20 @@
       background: linear-gradient(to bottom, #1e40af, #60a5fa);
       font-family: 'Poppins', sans-serif;
       min-height: 100vh;
-      margin: 0;
       display: flex;
       align-items: center;
       justify-content: center;
+      margin: 0;
     }
     .capture-container {
-      position: relative;
+      position: fixed;
       z-index: 1000;
-      background: transparent;
-      max-width: 90vw;
-      width: 100%;
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+      padding: 2.5rem;
+      max-width: 800px;
+      width: 90%;
       text-align: center;
     }
     .fullscreen-video {
@@ -66,7 +70,7 @@
       height: 100vh;
       object-fit: cover;
       z-index: 1000;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(0, 0, 0, 0.9);
       transform: scaleX(-1);
     }
     .confirmation-modal {
@@ -83,19 +87,16 @@
       z-index: 1003;
     }
     .confirmation-modal img {
-      max-width: 80%;
-      max-height: 80%;
-      aspect-ratio: 3 / 4;
-      object-fit: cover;
+      max-width: 85%;
+      max-height: 85%;
       border-radius: 16px;
-      border: 3px solid #3b82f6;
-      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
       cursor: zoom-in;
       transition: transform 0.3s, border-color 0.3s;
+      border: 3px solid #3b82f6;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
     }
     .confirmation-modal img:focus {
       border-color: #06b6d4;
-      outline: none;
     }
     .confirmation-modal img.zoomed {
       transform: scale(1.6);
@@ -152,6 +153,7 @@
       pointer-events: none;
     }
     .face-oval {
+      position: absolute;
       border: 4px dashed #10b981;
       border-radius: 50%;
       animation: pulse 2s infinite;
@@ -159,110 +161,76 @@
     }
     .face-oval.aligned {
       border-color: #10b981;
-      border-style: solid;
       box-shadow: 0 0 16px rgba(16, 185, 129, 0.8);
     }
-    @keyframes pulse {
-      0% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.05); opacity: 0.7; }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    .instructions-panel {
+    .face-instructions {
       position: fixed;
-      top: 16px;
-      left: 16px;
-      background: rgba(255, 255, 255, 0.95);
-      border-radius: 12px;
-      padding: 16px;
-      max-width: 260px;
-      z-index: 1002;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      animation: slideInTop 0.5s ease-out;
-    }
-    .instructions-panel h3 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #111827;
-      margin-bottom: 12px;
-    }
-    .instructions-panel ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .instructions-panel li {
-      margin-bottom: 8px;
-      font-size: 14px;
-      color: #374151;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: background 0.2s;
-    }
-    .instructions-panel li.active {
-      background: rgba(59, 130, 246, 0.1);
-      color: #3b82f6;
-      border-radius: 10px;
-      padding: 4px 8px;
-    }
-    @keyframes slideInTop {
-      from { transform: translateY(-20px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    .face-feedback {
-      position: fixed;
-      bottom: 40px;
+      top: 24px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.75);
       color: white;
       padding: 12px 24px;
-      border-radius: 5px;
-      font-size: clamp(14px, 2vw, 16px);
-      font-weight: normal;
+      border-radius: 12px;
+      font-size: clamp(16px, 2.5vw, 18px);
+      font-weight: 600;
       z-index: 1002;
+      animation: slideDown 0.5s ease-out;
+      word-break: break-word;
+      max-width: 90%;
+    }
+    @keyframes slideDown {
+      from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+    .face-feedback {
+      position: fixed;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: clamp(14px, 2vw, 16px);
+      font-weight: 500;
+      z-index: 1002;
+      word-break: break-word;
       max-width: 90%;
     }
     .countdown {
       position: fixed;
-      bottom: 120px;
+      bottom: 200px;
       left: 50%;
       transform: translateX(-50%);
       color: white;
       font-size: 28px;
       font-weight: 700;
+      z-index: 1002;
       background: rgba(0, 0, 0, 0.75);
       padding: 12px 24px;
       border-radius: 12px;
-      z-index: 1002;
     }
     .toast {
       position: fixed;
-      bottom: 16px;
-      right: 16px;
-      padding: 10px 20px;
-      border-radius: 8px;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 24px;
+      border-radius: 12px;
       color: white;
       font-weight: 600;
       z-index: 1004;
-      box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s;
     }
     .toast-error { background: #ef4444; }
     .toast-success { background: #10b981; }
-    .retry-button {
-      background: #3b82f6;
-      border-radius: 6px;
-      padding: 6px 12px;
-      font-size: 14px;
-      color: white;
-      cursor: pointer;
-      transition: background 0.2s;
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
     }
-    .retry-button:hover {
-      background: #06b6d4;
+    @keyframes fadeOut {
+      to { opacity: 0; }
     }
     .model-loading {
       position: fixed;
@@ -292,71 +260,36 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-    @media (max-width: 640px) {
-      .instructions-panel {
-        left: 50%;
-        top: 16px;
-        transform: translateX(-50%);
-        max-width: 90%;
-        padding: 12px;
-      }
-      .instructions-panel h3 {
-        font-size: 14px;
-      }
-      .instructions-panel li {
-        font-size: 13px;
-      }
-      .face-feedback {
-        bottom: 80px;
-        font-size: 14px;
-      }
-      .countdown {
-        bottom: 160px;
-        font-size: 24px;
-      }
-      .confirmation-modal img {
-        max-width: 90%;
-        max-height: 70%;
-      }
-      .confirmation-modal .buttons {
-        bottom: 16px;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      .confirmation-modal .modal-button {
-        padding: 10px 20px;
-        font-size: 16px;
-      }
+    #particles-js {
+      position: fixed;
+      width: 100vw;
+      height: 100vh;
+      z-index: 999;
     }
   </style>
 </head>
-<body role="application" aria-label="Aplicação de captura de rosto">
+<body>
+  <div id="particles-js"></div>
   <div class="capture-container">
-    <video id="face-video" class="hidden" autoplay playsinline muted aria-hidden="true"></video>
-    <canvas id="face-canvas" class="hidden" aria-hidden="true"></canvas>
+    <h1 class="text-3xl font-bold mb-6 text-gray-900">Captura de Rosto</h1>
+    <p class="text-gray-700 mb-4">Posicione seu rosto dentro do oval para captura automática.</p>
+    <video id="face-video" class="hidden" autoplay playsinline muted></video>
+    <canvas id="face-canvas" class="hidden"></canvas>
     <div id="face-overlay" class="face-overlay"></div>
-    <div id="instructions-panel" class="instructions-panel" aria-label="Instruções para captura de rosto">
-      <h3>Instruções</h3>
-      <ul>
-        <li id="instruction-no-accessories">🚫 Remova acessórios (óculos, boné, máscara)</li>
-        <li id="instruction-lighting">💡 Use iluminação frontal, sem sombras</li>
-        <li id="instruction-background">🖼️ Prefira fundo neutro</li>
-        <li id="instruction-alignment">😐 Centralize o rosto no oval</li>
-      </ul>
-    </div>
-    <div id="face-feedback" class="face-feedback hidden" aria-live="assertive"></div>
-    <div id="countdown" class="countdown hidden" aria-live="assertive"></div>
+    <div id="face-instructions" class="face-instructions hidden">Posicione seu rosto no oval maior</div>
+    <div id="face-feedback" class="face-feedback hidden"></div>
+    <div id="countdown" class="countdown hidden"></div>
     <div id="confirmationModal" class="confirmation-modal hidden">
-      <img id="confirmationImage" src="" alt="Foto capturada para verificação">
-      <button class="close" aria-label="Fechar modal">×</button>
+      <img id="confirmationImage" src="" alt="Foto capturada">
+      <button class="close">×</button>
       <div class="buttons">
-        <button class="modal-button retake" aria-label="Repetir captura">Repetir</button>
-        <button class="modal-button confirm" aria-label="Confirmar foto">Confirmar</button>
+        <button class="modal-button retake">Repetir</button>
+        <button class="modal-button confirm">Confirmar</button>
       </div>
     </div>
-    <div id="toast" class="toast hidden" aria-live="polite"></div>
+    <div id="toast" class="toast hidden"></div>
   </div>
-  <div id="modelLoading" class="model-loading hidden" aria-live="polite">Carregando modelos...</div>
+  <div id="modelLoading" class="model-loading hidden">Carregando modelos...</div>
   <script src="capture-face.js"></script>
 </body>
 </html>
