@@ -54,20 +54,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  function calculateSharpness(canvas, ctx, box) {
+  function calculateSharpnessAndBrightness(canvas, ctx, box) {
     try {
-      const regionSize = Math.max(64, Math.min(box.width, box.height) * 0.9); // Aumentado para maior robustez
+      const regionSize = 128;
       const x = Math.max(0, box.x + box.width / 2 - regionSize / 2);
       const y = Math.max(0, box.y + box.height / 2 - regionSize / 2);
       const imageData = ctx.getImageData(x, y, regionSize, regionSize);
       const data = imageData.data;
       let laplacianSum = 0;
+      let brightnessSum = 0;
       let count = 0;
 
       for (let i = 1; i < regionSize - 1; i += 2) {
         for (let j = 1; j < regionSize - 1; j += 2) {
           const idx = (i * regionSize + j) * 4;
           const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
+          brightnessSum += gray;
           const laplacian =
             -4 * gray +
             (data[((i - 1) * regionSize + j) * 4] * 0.299 + data[((i - 1) * regionSize + j) * 4 + 1] * 0.587 + data[((i - 1) * regionSize + j) * 4 + 2] * 0.114) +
@@ -79,13 +81,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
       const sharpness = count ? laplacianSum / count : 0;
-      const normalizedSharpness = sharpness / 1000; // Simplificada para evitar distorções
-      console.log(`Nitidez calculada: ${sharpness}, Normalizada: ${normalizedSharpness}, Região: ${regionSize}x${regionSize}`);
-      return normalizedSharpness;
+      const normalizedSharpness = sharpness / 1000;
+      const averageBrightness = brightnessSum / (count * 255);
+      console.log(`Nitidez: ${sharpness}, Normalizada: ${normalizedSharpness}, Brilho: ${averageBrightness.toFixed(2)}, Região: ${regionSize}x${regionSize}`);
+      return { sharpness: normalizedSharpness, brightness: averageBrightness };
     } catch (error) {
-      console.error('Erro ao calcular nitidez:', error);
-      showToast('Erro na análise de nitidez.', 'error');
-      return 0;
+      console.error('Erro ao calcular nitidez/brilho:', error);
+      showToast('Erro na análise de imagem.', 'error');
+      return { sharpness: 0, brightness: 0 };
     }
   }
 
@@ -160,65 +163,65 @@ document.addEventListener('DOMContentLoaded', async () => {
       const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
       console.log(`Detecções: ${detections.length}`);
 
+      const oval = faceOverlay.firstChild;
+      const videoWidth = faceVideo.videoWidth;
+      const videoHeight = faceVideo.videoHeight;
+      const screenWidth = document.body.clientWidth;
+      const screenHeight = document.body.clientHeight;
+      const scaleX = screenWidth / videoWidth;
+      const scaleY = screenHeight / videoHeight;
+      const ovalWidth = 240; // Fixo, em pixels
+      const ovalHeight = 320; // Fixo, em pixels
+      const ovalCenterX = screenWidth / 2; // Centro da tela
+      const ovalCenterY = screenHeight / 2;
+
       if (detections.length === 1) {
         const { box } = detections[0].detection;
         const landmarks = detections[0].landmarks;
         const nose = landmarks.getNose()[0];
 
-        // Ajustar oval dinamicamente
-        const oval = faceOverlay.firstChild;
-        const videoWidth = faceVideo.videoWidth;
-        const videoHeight = faceVideo.videoHeight;
-        const scaleX = window.innerWidth / videoWidth;
-        const scaleY = window.innerHeight / videoHeight;
-        const ovalWidth = box.width * 1.5 * scaleX;
-        const ovalHeight = box.height * 2 * scaleY;
-        const ovalLeft = (videoWidth - box.x - box.width) * scaleX - ovalWidth / 2; // Ajuste para espelhamento
-        const ovalTop = (box.y - box.height * 0.5) * scaleY;
+        // Verificar alinhamento com oval fixo
+        const noseScreenX = screenWidth - nose.x * scaleX; // Ajuste para espelhamento
+        const noseScreenY = nose.y * scaleY;
+        const distanceToOval = Math.sqrt(
+          (noseScreenX - ovalCenterX) ** 2 + (noseScreenY - ovalCenterY) ** 2
+        );
+        const maxDistance = Math.min(ovalWidth, ovalHeight) * 0.3; // Tolerância
 
-        oval.style.width = `${ovalWidth}px`;
-        oval.style.height = `${ovalHeight}px`;
-        oval.style.left = `${ovalLeft}px`;
-        oval.style.top = `${ovalTop}px`;
+        console.log(`Nariz: x=${noseScreenX}, y=${noseScreenY}, Distância ao oval: ${distanceToOval}, Máx: ${maxDistance}`);
 
-        const centerX = videoWidth / 2;
-        const centerY = videoHeight / 2;
-        const distanceToCenter = Math.sqrt((nose.x - centerX) ** 2 + (nose.y - centerY) ** 2);
-
-        console.log(`Distância ao centro: ${distanceToCenter}, Caixa: ${box.width}x${box.height}, Oval: ${ovalLeft}x${ovalTop}`);
-
-        if (distanceToCenter < videoWidth * 0.4 && box.width > videoWidth * 0.03) {
+        if (distanceToOval < maxDistance && box.width > videoWidth * 0.03) {
           alignedFrames++;
           oval.classList.add('aligned');
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
-          console.log('Rosto alinhado:', { alignedFrames, distanceToCenter, boxWidth: box.width });
+          console.log('Rosto alinhado:', { alignedFrames, distanceToOval, boxWidth: box.width });
 
           if (alignedFrames >= 3) {
-            const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
+            const { sharpness, brightness } = calculateSharpnessAndBrightness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 0.3) { // Reduzido limite
-              console.log('Captura disparada:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
+            if (sharpness > 0.25 && brightness > 0.2) {
+              console.log('Captura disparada:', { sharpness, brightness, timeSinceLastCapture: Date.now() - lastCaptureTime });
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
               detectionActive = false;
               startCountdown();
               return;
             } else {
-              faceFeedback.innerHTML = `🌫️ Iluminação fraca, aproxime-se de uma luz (nitidez: ${sharpness.toFixed(2)})`;
-              console.log('Nitidez insuficiente:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
+              faceFeedback.innerHTML = brightness <= 0.2 ? `🌑 Ambiente muito escuro (brilho: ${brightness.toFixed(2)})` : `🌫️ Imagem não nítida (nitidez: ${sharpness.toFixed(2)})`;
+              console.log('Condições insuficientes:', { sharpness, brightness, timeSinceLastCapture: Date.now() - lastCaptureTime });
             }
           }
         } else {
           alignedFrames = 0;
           oval.classList.remove('aligned');
-          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.4 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
+          faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Alinhe o rosto no oval' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
-          console.log('Rosto desalinhado:', { distanceToCenter, boxWidth: box.width });
+          console.log('Rosto desalinhado:', { distanceToOval, boxWidth: box.width });
         }
       } else {
         alignedFrames = 0;
-        faceOverlay.firstChild.classList.remove('aligned');
+        oval.classList.remove('aligned');
         faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
         faceFeedback.classList.remove('hidden');
         console.log('Detecção inválida:', { detectionCount: detections.length });
