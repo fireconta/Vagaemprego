@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast.innerHTML = message + (showRetry ? ' <button class="retry-button">Tentar novamente</button>' : '');
     toast.className = `toast toast-${type}`;
     toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 7000); // Aumentado para 7s para mais visibilidade
+    setTimeout(() => toast.classList.add('hidden'), 7000);
     console.log(`Toast exibido: ${message} (${type})`);
     if (showRetry) {
       toast.querySelector('.retry-button').addEventListener('click', initialize);
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadModels(attempt = 1, maxAttempts = 3) {
-    const path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/';
+    const path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
     try {
       console.log(`Tentativa ${attempt} de carregar modelos de: ${path}`);
       await Promise.all([
@@ -67,7 +67,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         await new Promise(resolve => setTimeout(resolve, 3000));
         return loadModels(attempt + 1, maxAttempts);
       }
-      throw new Error(`Falha ao carregar modelos após ${maxAttempts} tentativas: ${error.message}`);
+      showToast('Falha ao carregar modelos de detecção facial. A câmera ainda pode ser usada.', 'error', true);
+      return false; // Continuar mesmo com falha nos modelos
     }
   }
 
@@ -75,25 +76,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       stopStream();
       faceVideo.srcObject = null;
-      faceVideo.classList.add('hidden'); // Garantir que começa oculto
+      faceVideo.classList.add('hidden');
       isCapturing = false;
       detectionActive = false;
 
       const constraints = {
         video: {
-          facingMode: 'user' // Simplificado para maior compatibilidade
+          facingMode: 'user'
         }
       };
 
       console.log(`Tentativa ${attempt} de iniciar câmera:`, constraints);
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       faceVideo.srcObject = stream;
-      faceVideo.classList.remove('hidden'); // Remover hidden imediatamente
+      faceVideo.classList.remove('hidden');
       faceVideo.classList.add('fullscreen-video');
 
       // Forçar visibilidade do vídeo
       faceVideo.style.display = 'block';
       faceVideo.style.visibility = 'visible';
+      faceVideo.style.zIndex = '1000';
 
       faceOverlay.innerHTML = '';
       const oval = document.createElement('div');
@@ -182,7 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
       tempCtx.save();
-      tempCtx.scale(-1, 1);
+      tempCtx.scale(-1,  O);
       tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
       tempCtx.restore();
       const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
@@ -249,8 +251,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (error) {
       console.error('Erro na detecção:', error);
-      showToast('Erro na detecção facial.', 'error', true);
-      highlightInstruction(null);
+      showToast('Erro na detecção facial. A câmera ainda está ativa.', 'error', true);
     }
 
     if (detectionActive) {
@@ -404,11 +405,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function initialize() {
     modelLoading.classList.remove('hidden');
     try {
-      await loadModels();
+      // Iniciar a câmera mesmo se os modelos falharem
       await startFaceCapture();
+      const modelsLoaded = await loadModels();
+      if (!modelsLoaded) {
+        console.warn('Modelos não carregados, continuando com câmera apenas');
+        showToast('Detecção facial não disponível, mas a câmera está ativa.', 'warning', true);
+      }
     } catch (error) {
       console.error('Erro na inicialização:', error);
-      showToast('Erro ao iniciar. Verifique a conexão ou habilite a câmera.', 'error', true);
+      showToast('Erro ao iniciar. Verifique a conexão ou a câmera.', 'error', true);
     } finally {
       modelLoading.classList.add('hidden');
     }
