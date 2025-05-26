@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let isCapturing = false;
   let alignedFrames = 0;
   let detectionActive = false;
+  let countdownInterval = null;
   let tempCanvas = document.createElement('canvas');
   let tempCtx = tempCanvas.getContext('2d');
 
@@ -49,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadModels(attempt = 1, maxAttempts = 3) {
-    let path = './weights/'; // Pasta local
+    let path = './weights/';
     try {
       console.log(`Tentativa ${attempt} de carregar modelos de: ${path}`);
       await Promise.all([
@@ -63,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error(`Erro ao carregar modelos locais (tentativa ${attempt}):`, error);
       if (attempt < maxAttempts) {
         if (attempt === maxAttempts - 1) {
-          path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/'; // Fallback para CDN
+          path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/';
           console.log(`Tentando fallback para: ${path}`);
         }
         await new Promise(resolve => setTimeout(resolve, 3000));
@@ -102,13 +103,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const oval = document.createElement('div');
       oval.classList.add('face-oval');
       faceOverlay.appendChild(oval);
+      const ovalRect = oval.getBoundingClientRect();
       console.log('Oval posicionado:', {
         screenWidth: window.innerWidth,
         screenHeight: window.innerHeight,
-        ovalTop: getComputedStyle(oval).top,
-        ovalLeft: getComputedStyle(oval).left,
-        ovalWidth: getComputedStyle(oval).width,
-        ovalHeight: getComputedStyle(oval).height
+        ovalLeft: ovalRect.left,
+        ovalTop: ovalRect.top,
+        ovalWidth: ovalRect.width,
+        ovalHeight: ovalRect.height,
+        expectedCenterX: window.innerWidth / 2,
+        expectedCenterY: window.innerHeight / 2
       });
 
       await new Promise((resolve, reject) => {
@@ -185,7 +189,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         tempCanvas.height = faceVideo.videoHeight;
       }
 
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 256, scoreThreshold: 0.5 });
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
       tempCtx.save();
       tempCtx.scale(-1, 1);
       tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
@@ -199,9 +203,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const screenHeight = window.innerHeight;
       const scaleX = screenWidth / videoWidth;
       const scaleY = screenHeight / videoHeight;
-      const ovalStyle = getComputedStyle(oval);
-      const ovalWidth = parseFloat(ovalStyle.width);
-      const ovalHeight = parseFloat(ovalStyle.height);
+      const ovalRect = oval.getBoundingClientRect();
+      const ovalWidth = ovalRect.width;
+      const ovalHeight = ovalRect.height;
       const ovalCenterX = screenWidth / 2;
       const ovalCenterY = screenHeight / 2;
 
@@ -223,23 +227,22 @@ document.addEventListener('DOMContentLoaded', async () => {
           faceFeedback.classList.remove('hidden');
           highlightInstruction('instruction-alignment');
 
-          if (alignedFrames >= 3) {
+          if (alignedFrames >= 3 && !countdownInterval) {
             oval.classList.add('aligned');
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
             if (sharpness > 0.05) {
-              faceFeedback.innerHTML = '📸 Capturando...';
-              isCapturing = true;
-              detectionActive = false;
-              highlightInstruction(null);
+              faceFeedback.innerHTML = '📸 Preparando captura...';
               startCountdown();
               return;
             } else {
               faceFeedback.innerHTML = '💡 Melhore a iluminação';
               highlightInstruction('instruction-lighting');
+              alignedFrames = 0;
             }
           }
         } else {
           alignedFrames = 0;
+          clearCountdown();
           oval.classList.remove('aligned');
           faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Alinhe o rosto no oval' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
@@ -247,6 +250,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       } else {
         alignedFrames = 0;
+        clearCountdown();
         oval.classList.remove('aligned');
         faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
         faceFeedback.classList.remove('hidden');
@@ -298,21 +302,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function startCountdown() {
+    if (countdownInterval) return;
     let countdown = 3;
     countdownElement.textContent = countdown;
     countdownElement.classList.remove('hidden');
     countdownElement.style.opacity = '1';
 
-    const countdownInterval = setInterval(() => {
+    countdownInterval = setInterval(() => {
       countdown--;
       countdownElement.textContent = countdown;
       if (countdown <= 0) {
         clearInterval(countdownInterval);
+        countdownInterval = null;
         countdownElement.style.opacity = '0';
         setTimeout(() => countdownElement.classList.add('hidden'), 300);
         captureFace();
       }
     }, 1000);
+  }
+
+  function clearCountdown() {
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      countdownElement.classList.add('hidden');
+    }
   }
 
   function captureFace() {
@@ -359,7 +373,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       confirmationImage.src = imageData;
       confirmationModal.classList.remove('hidden');
-      console.log('Foto capturada');
+      console.log('Foto capturada automaticamente');
     } catch (error) {
       console.error('Erro ao capturar imagem:', error);
       showToast('Erro ao capturar a foto.', 'error', true);
