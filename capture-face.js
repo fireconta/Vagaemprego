@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadModels(attempt = 1, maxAttempts = 3) {
-    let path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
+    let path = './weights/'; // Pasta local
     try {
       console.log(`Tentativa ${attempt} de carregar modelos de: ${path}`);
       await Promise.all([
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       showToast('Modelos carregados!', 'success');
       return true;
     } catch (error) {
-      console.error(`Erro ao carregar modelos do GitHub (tentativa ${attempt}):`, error);
+      console.error(`Erro ao carregar modelos locais (tentativa ${attempt}):`, error);
       if (attempt < maxAttempts) {
         if (attempt === maxAttempts - 1) {
           path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/'; // Fallback para CDN
@@ -101,16 +101,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       faceOverlay.innerHTML = '';
       const oval = document.createElement('div');
       oval.classList.add('face-oval');
-      oval.style.position = 'absolute';
-      oval.style.top = '50%';
-      oval.style.left = '50%';
-      oval.style.transform = 'translate(-50%, -50%)';
       faceOverlay.appendChild(oval);
       console.log('Oval posicionado:', {
         screenWidth: window.innerWidth,
         screenHeight: window.innerHeight,
-        ovalTop: oval.style.top,
-        ovalLeft: oval.style.left,
+        ovalTop: getComputedStyle(oval).top,
+        ovalLeft: getComputedStyle(oval).left,
         ovalWidth: getComputedStyle(oval).width,
         ovalHeight: getComputedStyle(oval).height
       });
@@ -189,9 +185,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         tempCanvas.height = faceVideo.videoHeight;
       }
 
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 256, scoreThreshold: 0.5 });
       tempCtx.save();
-      tempCtx.scale(-1, 1); // Corrigido erro de sintaxe
+      tempCtx.scale(-1, 1);
       tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
       tempCtx.restore();
       const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
@@ -214,7 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const landmarks = detections[0].landmarks;
         const nose = landmarks.getNose()[0];
 
-        const noseScreenX = screenWidth - nose.x * scaleX; // Ajustado para espelhamento
+        const noseScreenX = screenWidth - nose.x * scaleX;
         const noseScreenY = nose.y * scaleY;
         const distanceToOval = Math.sqrt(
           (noseScreenX - ovalCenterX) ** 2 + (noseScreenY - ovalCenterY) ** 2
