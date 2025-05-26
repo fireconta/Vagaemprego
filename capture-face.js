@@ -41,18 +41,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  async function checkDevices() {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      console.log('Dispositivos de vídeo:', videoDevices);
-      return videoDevices.length > 0 ? videoDevices : null;
-    } catch (error) {
-      console.error('Erro ao listar dispositivos:', error);
-      return null;
-    }
-  }
-
   async function loadModels(attempt = 1, maxAttempts = 3) {
     const path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/weights/';
     try {
@@ -66,8 +54,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error(`Erro ao carregar modelos (tentativa ${attempt}):`, error);
       if (attempt < maxAttempts) {
-        console.log(`Tentando novamente em 2 segundos...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log(`Tentando novamente em 3 segundos...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
         return loadModels(attempt + 1, maxAttempts);
       }
       throw new Error(`Falha após ${maxAttempts} tentativas: ${error.message}`);
@@ -82,24 +70,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       isCapturing = false;
       detectionActive = false;
 
-      // Verificar dispositivos
-      const videoDevices = await checkDevices();
-      if (!videoDevices) {
-        throw new Error('Nenhuma câmera detectada');
-      }
+      const constraints = {
+        video: {
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 },
+          facingMode: 'user'
+        }
+      };
 
-      // Tentar constraints flexíveis primeiro
-      let constraints = { video: { facingMode: 'user' } };
       if (attempt > 1) {
-        constraints = {
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            facingMode: 'user'
-          }
-        };
+        console.log('Tentando constraints flexíveis');
+        constraints.video = { facingMode: 'user' };
       }
       console.log(`Tentativa ${attempt} de acessar câmera:`, constraints);
+
+      // Verificar protocolo
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        throw new Error('Câmera requer HTTPS ou localhost');
+      }
 
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       faceVideo.srcObject = stream;
@@ -151,13 +139,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
       console.error(`Erro ao acessar câmera (tentativa ${attempt}):`, error);
       let message = 'Erro ao acessar a câmera. Permita o acesso nas configurações do navegador.';
-      if (error.name === 'NotAllowedError') message = 'Permissão de câmera negada. Habilite nas configurações.';
-      if (error.name === 'NotFoundError' || error.message === 'Nenhuma câmera detectada') {
+      if (error.name === 'NotAllowedError') {
+        message = 'Permissão de câmera negada. Habilite nas configurações do navegador.';
+      } else if (error.name === 'NotFoundError') {
         message = 'Nenhuma câmera encontrada. Conecte uma câmera.';
+      } else if (error.message.includes('HTTPS')) {
+        message = 'Acesse via HTTPS ou localhost para usar a câmera.';
       }
       if (attempt < maxAttempts) {
-        console.log(`Tentando novamente em 2 segundos...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log(`Tentando novamente em 3 segundos...`);
+        await new Promise(resolve => setTimeout(resolve, 3000));
         return startFaceCapture(attempt + 1, maxAttempts);
       }
       showToast(message, true);
@@ -196,7 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const distanceToOval = Math.sqrt(
           (noseScreenX - ovalCenterX) ** 2 + (noseScreenY - ovalCenterY) ** 2
         );
-        const maxDistance = Math.min(ovalWidth, owlHeight) * 0.3;
+        const maxDistance = Math.min(ovalWidth, ovalHeight) * 0.3;
 
         if (distanceToOval < maxDistance && box.width > videoWidth * 0.03) {
           alignedFrames++;
@@ -211,6 +202,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               isCapturing = true;
               detectionActive = false;
               startCountdown();
+              return;
             } else {
               faceFeedback.innerHTML = '💡 Melhore a iluminação';
             }
@@ -218,7 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           alignedFrames = 0;
           oval.classList.remove('aligned');
-          faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Centralize o rosto' : '🔍 Aproxime-se';
+          faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Centralize o rosto' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
         }
       } else {
@@ -351,7 +343,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   confirmButton.addEventListener('click', () => {
-    sessionStorage.setItem('facePhoto', confirmationImage.src);
+    sessionStorage.setItem('faceImage', confirmationImage.src);
     confirmationModal.classList.add('hidden');
     console.log('Foto confirmada');
     const urlParams = new URLSearchParams(window.location.search);
@@ -379,7 +371,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await startFaceCapture();
     } catch (error) {
       console.error('Erro na inicialização:', error);
-      showToast('Erro ao iniciar. Verifique conexão e permissões.', true);
+      showToast('Erro ao iniciar. Verifique permissões e conexão.', true);
     } finally {
       modelLoading.classList.add('hidden');
     }
