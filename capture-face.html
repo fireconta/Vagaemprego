@@ -34,7 +34,7 @@
       width: 100vw;
       height: 100vh;
       object-fit: cover;
-      z-index: 1005 !important;
+      z-index: 1000 !important;
       background: transparent;
       transform: scaleX(-1);
       display: block !important;
@@ -48,15 +48,13 @@
       background: rgba(0, 0, 0, 0.85);
       backdrop-filter: blur(8px);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       z-index: 1003;
-      gap: 1.5rem;
     }
     .confirmation-modal img {
       max-width: 80%;
-      max-height: 60%;
+      max-height: 70%;
       aspect-ratio: 3 / 4;
       object-fit: cover;
       border-radius: 16px;
@@ -73,14 +71,18 @@
       transform: scale(1.6);
     }
     .confirmation-modal .buttons {
+      position: absolute;
+      bottom: 32px;
       display: flex;
+      justify-content: center;
       gap: 1.5rem;
+      width: 100%;
     }
     .modal-button {
       background: #3b82f6;
       border-radius: 12px;
-      padding: 14px 28px;
-      font-size: 18px;
+      padding: 12px 32px;
+      font-size: 16px;
       font-weight: 600;
       color: white;
       border: none;
@@ -107,7 +109,7 @@
       pointer-events: none;
     }
     .face-oval {
-      border: 4px solid #10b981;
+      border: 6px solid #10b981;
       border-radius: 50%;
       width: 35vw;
       height: 52.5vw;
@@ -133,7 +135,7 @@
     }
     .face-feedback {
       position: fixed;
-      bottom: 80px;
+      bottom: 100px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.85);
@@ -244,21 +246,22 @@
     }
     @media (max-width: 640px) {
       .face-feedback {
-        bottom: 70px;
+        bottom: 80px;
         font-size: 14px;
         padding: 10px 16px;
       }
       .confirmation-modal img {
         max-width: 90vw;
-        max-height: 50vh;
+        max-height: 60vh;
       }
       .confirmation-modal .buttons {
+        bottom: 24px;
         flex-direction: column;
         gap: 1rem;
       }
       .modal-button {
-        padding: 10px 20px;
-        font-size: 16px;
+        padding: 10px 24px;
+        font-size: 14px;
       }
       .face-oval {
         width: 50vw;
@@ -279,11 +282,11 @@
     <video id="face-video" autoplay playsinline muted aria-hidden="true"></video>
     <canvas id="face-canvas" class="hidden" aria-hidden="true"></canvas>
     <div id="face-overlay" class="face-overlay"></div>
-    <div id="face-feedback" class="face-feedback hidden" aria-live="assertive"></div>
+    <div id="face-feedback" class="face-feedback">Iniciando detecção...</div>
     <div id="confirmationModal" class="confirmation-modal hidden">
       <img id="confirmationImage" src="" alt="Foto capturada para verificação">
       <div class="buttons">
-        <button id="retakeButton" class="modal-button" aria-label="Repetir captura">Repetir</button>
+        <button id="repeatButton" class="modal-button" aria-label="Repetir captura">Repetir</button>
         <button id="sendButton" class="modal-button send" aria-label="Enviar foto">Enviar</button>
       </div>
     </div>
@@ -307,7 +310,7 @@
       const faceFeedback = document.getElementById('face-feedback');
       const confirmationModal = document.getElementById('confirmationModal');
       const confirmationImage = document.getElementById('confirmationImage');
-      const retakeButton = document.getElementById('retakeButton');
+      const repeatButton = document.getElementById('repeatButton');
       const sendButton = document.getElementById('sendButton');
       const toast = document.getElementById('toast');
       const modelLoading = document.getElementById('modelLoading');
@@ -338,6 +341,7 @@
         toast.innerHTML = message + (showRetry ? ' <button class="retry-button">Tentar novamente</button>' : '');
         toast.className = `toast toast-${type}`;
         toast.classList.remove('hidden');
+        toast.style.zIndex = '1006';
         setTimeout(() => toast.classList.add('hidden'), type === 'error' ? 10000 : 5000);
         if (showRetry) {
           const retryButton = toast.querySelector('.retry-button');
@@ -367,7 +371,7 @@
               faceapi.nets.tinyFaceDetector.loadFromUri(path),
               faceapi.nets.faceLandmark68Net.loadFromUri(path)
             ]),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout nos modelos')), 5000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout nos modelos')), 10000))
           ]);
           modelsLoaded = true;
           console.log('Modelos carregados');
@@ -389,6 +393,7 @@
 
       // Configura o overlay com oval
       async function setupOverlay() {
+        console.log('Configurando overlay...');
         faceOverlay.innerHTML = '';
         const oval = document.createElement('div');
         oval.classList.add('face-oval');
@@ -403,6 +408,8 @@
           ovalHeight: ovalRect.height
         });
         updateDebugStatus('Overlay configurado');
+        // Forçar visibilidade
+        oval.style.border = '6px solid #10b981';
       }
 
       // Inicia o vídeo da câmera
@@ -412,13 +419,13 @@
           stopStream();
           faceVideo.classList.add('fullscreen-video');
           faceVideo.style.display = 'block';
-          faceVideo.style.zIndex = '1005';
+          faceVideo.style.zIndex = '1000';
 
           const constraints = {
             video: {
               facingMode: 'user',
-              width: { min: 640, ideal: 1280 },
-              height: { min: 480, ideal: 720 },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
               frameRate: { ideal: 30 }
             }
           };
@@ -479,6 +486,7 @@
 
       // Detecta rostos e verifica alinhamento no oval
       async function detectFaces() {
+        console.log('Detectando rostos...');
         if (!isDetectionActive || faceVideo.paused || faceVideo.ended || isCapturing) {
           console.log('Detecção pausada:', {
             isDetectionActive,
@@ -486,12 +494,16 @@
             paused: faceVideo.paused,
             ended: faceVideo.ended
           });
+          faceFeedback.innerHTML = '⏸️ Detecção pausada';
+          faceFeedback.classList.remove('hidden');
+          setTimeout(detectFaces, 100);
           return;
         }
 
+        faceFeedback.classList.remove('hidden'); // Garantir visibilidade
         if (!modelsLoaded) {
           faceFeedback.innerHTML = '⚠️ Detecção facial indisponível';
-          faceFeedback.classList.remove('hidden');
+          console.log('Modelos não carregados');
           requestAnimationFrame(detectFaces);
           return;
         }
@@ -506,6 +518,14 @@
           const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
 
           const oval = faceOverlay.querySelector('.face-oval');
+          if (!oval) {
+            console.error('Oval não encontrado no DOM');
+            await setupOverlay();
+            faceFeedback.innerHTML = '⚠️ Overlay não carregado';
+            requestAnimationFrame(detectFaces);
+            return;
+          }
+
           const videoWidth = faceVideo.videoWidth;
           const videoHeight = faceVideo.videoHeight;
           const screenWidth = window.innerWidth;
@@ -525,7 +545,7 @@
           if (detections.length === 1) {
             const { box } = detections[0].detection;
 
-            // Coordenadas da caixa do rosto na tela (invertendo X por causa do scaleX(-1))
+            // Coordenadas da caixa do rosto na tela
             const faceLeft = screenWidth - (box.x + box.width) * scaleX;
             const faceRight = screenWidth - box.x * scaleX;
             const faceTop = box.y * scaleY;
@@ -533,16 +553,16 @@
 
             // Verifica se a caixa do rosto está dentro do oval
             const isInsideOval = (
-              faceLeft >= ovalLeft + 0.1 * ovalWidth &&
-              faceRight <= ovalRight - 0.1 * ovalWidth &&
-              faceTop >= ovalTop + 0.1 * ovalHeight &&
-              faceBottom <= ovalBottom - 0.1 * ovalHeight
+              faceLeft >= ovalLeft + 0.05 * ovalWidth &&
+              faceRight <= ovalRight - 0.05 * ovalWidth &&
+              faceTop >= ovalTop + 0.05 * ovalHeight &&
+              faceBottom <= ovalBottom - 0.05 * ovalHeight
             );
 
-            // Verifica o tamanho do rosto em relação ao oval
+            // Verifica o tamanho do rosto
             const faceWidth = box.width * scaleX;
             const faceHeight = box.height * scaleY;
-            const minWidth = 0.8 * ovalWidth;
+            const minWidth = 0.85 * ovalWidth;
             const maxWidth = 0.95 * ovalWidth;
             const isSizeCorrect = faceWidth >= minWidth && faceWidth <= maxWidth;
 
@@ -564,20 +584,16 @@
                 if (sharpness > 0.05) {
                   isCapturing = true;
                   faceFeedback.innerHTML = '📸 Capturando...';
-                  faceFeedback.classList.remove('hidden');
                   console.log('Captura iniciada');
                   updateDebugStatus('Capturando');
                   captureFace();
                   return;
                 } else {
                   faceFeedback.innerHTML = '💡 Melhore a iluminação';
-                  faceFeedback.classList.remove('hidden');
                   alignedFrames = 0;
                 }
               } else {
                 faceFeedback.innerHTML = '✅ Alinhado! Aguarde...';
-                faceFeedback.classList.remove('hidden');
-                oval.classList.add('aligned');
                 updateDebugStatus('Rosto alinhado');
               }
             } else {
@@ -590,21 +606,21 @@
               } else {
                 faceFeedback.innerHTML = '🔍 Afastar o rosto';
               }
-              faceFeedback.classList.remove('hidden');
               updateDebugStatus('Rosto desalinhado');
             }
           } else {
             alignedFrames = 0;
             oval.classList.remove('aligned');
             faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
-            faceFeedback.classList.remove('hidden');
             updateDebugStatus('Nenhum ou múltiplos rostos');
           }
         } catch (error) {
           console.error('Erro na detecção:', error);
           showToast('Erro na detecção facial.', 'error', true);
           updateDebugStatus('Erro na detecção');
+          faceFeedback.innerHTML = '⚠️ Erro na detecção';
         }
+        faceFeedback.classList.remove('hidden');
         requestAnimationFrame(detectFaces);
       }
 
@@ -709,7 +725,7 @@
       }
 
       // Event listeners
-      retakeButton.addEventListener('click', () => {
+      repeatButton.addEventListener('click', () => {
         confirmationModal.classList.add('hidden');
         confirmationImage.src = '';
         console.log('Repetindo captura');
@@ -721,7 +737,7 @@
         sessionStorage.setItem('facePhoto', confirmationImage.src);
         confirmationModal.classList.add('hidden');
         console.log('Foto enviada');
-        updateDebugStatus('Enviado');
+        updateDebugStatus('Foto enviada');
         const urlParams = new URLSearchParams(window.location.search);
         const returnPage = urlParams.get('return') || 'index.html';
         window.location.href = returnPage;
