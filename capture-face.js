@@ -30,6 +30,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize particles.js
   function initParticles() {
+    console.log('Inicializando particles.js');
+    if (typeof particlesJS === 'undefined') {
+      console.error('particles.js não está carregado');
+      showToast('Erro: Biblioteca de partículas não carregada.', 'error');
+      return;
+    }
     particlesJS('particles-js', {
       particles: {
         number: { value: 100, density: { enable: true, value_area: 800 } },
@@ -54,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       },
       retina_detect: true
     });
+    console.log('particles.js inicializado com sucesso');
   }
 
   async function loadModels() {
@@ -221,7 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.log('Iniciando detecção de face');
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 });
       tempCtx.save();
-      tempCtx.scale(-1, 1); // Corrige inversão no canvas
+      tempCtx.scale(-1, 1); // Corrige inversão no canvas para detecção
       tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
       tempCtx.restore();
       const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
@@ -243,6 +250,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Controlar partículas
       if (window.pJSDom && window.pJSDom.length) {
         window.pJSDom[0].pJS.fn.particlesEmpty();
+        console.log('Partículas limpas');
       }
 
       if (detections.length === 1) {
@@ -366,6 +374,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       confirmationImage.src = imageData;
       confirmationModal.classList.remove('hidden');
       console.log('Foto capturada com sucesso');
+      // Limpar partículas após captura
+      if (window.pJSDom && window.pJSDom.length) {
+        window.pJSDom[0].pJS.fn.particlesEmpty();
+        console.log('Partículas limpas após captura');
+      }
     } catch (error) {
       console.error('Erro ao capturar imagem:', error);
       showToast('Falha ao capturar imagem.', 'error');
