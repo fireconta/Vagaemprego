@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="Aplicação para captura de rosto para validação facial - Vagaemprego">
   <meta name="author" content="fireconta">
   <meta name="robots" content="noindex, nofollow">
@@ -11,6 +11,9 @@
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       background: linear-gradient(to bottom, #1e40af, #60a5fa);
       font-family: 'Poppins', sans-serif;
@@ -19,6 +22,7 @@
       align-items: center;
       justify-content: center;
       margin: 0;
+      padding: 0;
     }
     .capture-container {
       background: #ffffff;
@@ -116,14 +120,16 @@
       left: 0;
       width: 100vw;
       height: 100vh;
+      margin: 0;
+      padding: 0;
       z-index: 1001;
       pointer-events: none;
       transform: scaleX(-1);
     }
     .face-oval {
       position: absolute;
-      width: 240px;
-      height: 320px;
+      width: 200px;
+      height: 280px;
       left: 50%;
       top: 50%;
       transform: translate(-50%, -50%);
