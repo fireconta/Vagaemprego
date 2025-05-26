@@ -20,12 +20,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   let detectionActive = false;
   let tempCanvas = document.createElement('canvas');
   let tempCtx = tempCanvas.getContext('2d');
+  let captureButton = null;
+
+  // Garantir que o modal esteja oculto no início
+  confirmationModal.classList.add('hidden');
+  confirmationImage.src = '';
+  sessionStorage.removeItem('facePhoto');
 
   async function loadModels() {
-    const path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+    const path = '/models';
     try {
       console.log(`Carregando modelos de: ${path}`);
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout no carregamento')), 8000));
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao carregar modelos')), 12000));
       await Promise.race([
         Promise.all([
           faceapi.nets.tinyFaceDetector.loadFromUri(path),
@@ -49,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(startFaceCapture, 2000);
   } catch (error) {
     modelLoading.classList.add('hidden');
-    showToast(`Erro ao carregar modelos: ${error.message}. Verifique sua conexão.`, 'error');
+    showToast(`Erro ao carregar modelos: ${error.message}. Verifique sua conexão e tente novamente.`, 'error');
     console.error('Falha na inicialização:', error);
     return;
   }
@@ -91,10 +97,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function startFaceCapture() {
     try {
-      // Limpar qualquer stream existente
       stopStream();
       faceVideo.srcObject = null;
       faceVideo.classList.add('hidden');
+      isCapturing = false;
+      detectionActive = false;
 
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -115,14 +122,32 @@ document.addEventListener('DOMContentLoaded', async () => {
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       faceVideo.srcObject = stream;
       faceVideo.classList.remove('hidden');
+      faceVideo.classList.add('fullscreen-video');
       faceInstructions.classList.remove('hidden');
 
       faceOverlay.innerHTML = '';
       const oval = document.createElement('div');
       oval.classList.add('face-oval');
+      oval.style.width = '300px';
+      oval.style.height = '400px';
+      oval.style.top = '50%';
+      oval.style.left = '50%';
+      oval.style.transform = 'translate(-50%, -50%)';
       faceOverlay.appendChild(oval);
 
-      // Aguardar até que o vídeo tenha dimensões válidas
+      if (!captureButton) {
+        captureButton = document.createElement('div');
+        captureButton.classList.add('capture-button');
+        document.body.appendChild(captureButton);
+        captureButton.addEventListener('click', () => {
+          if (captureButton.classList.contains('enabled')) {
+            isCapturing = true;
+            detectionActive = false;
+            startCountdown();
+          }
+        });
+      }
+
       const waitForVideoReady = () => {
         if (faceVideo.readyState >= 2 && faceVideo.videoWidth > 0 && faceVideo.videoHeight > 0) {
           console.log('Vídeo pronto:', { width: faceVideo.videoWidth, height: faceVideo.videoHeight });
@@ -136,16 +161,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       };
 
-      // Garantir que o vídeo esteja em reprodução
       faceVideo.play().then(() => {
         console.log('Vídeo iniciado');
         waitForVideoReady();
       }).catch(error => {
         console.error('Erro ao iniciar reprodução do vídeo:', error);
-        showToast('Erro ao iniciar o vídeo.', 'error');
+        showToast('Erro ao iniciar o vídeo. Verifique as permissões da câmera e tente novamente.', 'error');
+        faceVideo.classList.add('hidden');
+      });
+
+      faceVideo.addEventListener('error', (error) => {
+        console.error('Erro no elemento de vídeo:', error);
+        showToast('Erro no vídeo. Tente novamente.', 'error');
+        stopStream();
+        faceVideo.classList.add('hidden');
       });
     } catch (error) {
-      showToast('Erro ao acessar a câmera: Permita o acesso à câmera.', 'error');
+      showToast('Erro ao acessar a câmera: Permita o acesso à câmera no navegador.', 'error');
       console.error('Erro na câmera:', error);
       faceVideo.classList.add('hidden');
     }
@@ -171,15 +203,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
       console.log(`Detecções: ${detections.length}`);
 
-      const oval = faceOverlay.firstChild;
+      const oval = faceOverlay.querySelector('.face-oval');
       const videoWidth = faceVideo.videoWidth;
       const videoHeight = faceVideo.videoHeight;
-      const screenWidth = document.body.clientWidth;
-      const screenHeight = document.body.clientHeight;
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
       const scaleX = screenWidth / videoWidth;
       const scaleY = screenHeight / videoHeight;
-      const ovalWidth = 240; // Atualizado para corresponder ao CSS
-      const ovalHeight = 336; // Atualizado para corresponder ao CSS
+      const ovalStyle = getComputedStyle(oval);
+      const ovalWidth = parseFloat(ovalStyle.width);
+      const ovalHeight = parseFloat(ovalStyle.height);
       const ovalCenterX = screenWidth / 2;
       const ovalCenterY = screenHeight / 2;
 
@@ -199,7 +232,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (distanceToOval < maxDistance && box.width > videoWidth * 0.03) {
           alignedFrames++;
-          oval.classList.add('aligned');
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
           console.log('Rosto alinhado:', { alignedFrames, distanceToOval, boxWidth: box.width });
@@ -208,27 +240,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
             if (sharpness > 0.03) {
-              console.log('Captura disparada:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
-              faceFeedback.innerHTML = '📸 Capturando...';
-              isCapturing = true;
-              detectionActive = false;
-              startCountdown();
-              return;
+              console.log('Rosto pronto para captura:', { sharpness });
+              captureButton.classList.add('enabled');
+              faceFeedback.innerHTML = '📸 Pronto para capturar!';
             } else {
+              captureButton.classList.remove('enabled');
               faceFeedback.innerHTML = `🌫️ Imagem não nítida (nitidez: ${sharpness.toFixed(2)})`;
-              console.log('Nitidez insuficiente:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
+              console.log('Nitidez insuficiente:', { sharpness });
             }
           }
         } else {
           alignedFrames = 0;
-          oval.classList.remove('aligned');
+          captureButton.classList.remove('enabled');
           faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Alinhe o rosto no oval' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
           console.log('Rosto desalinhado:', { distanceToOval, boxWidth: box.width });
         }
       } else {
         alignedFrames = 0;
-        oval.classList.remove('aligned');
+        captureButton.classList.remove('enabled');
         faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
         faceFeedback.classList.remove('hidden');
         console.log('Detecção inválida:', { detectionCount: detections.length });
@@ -264,9 +294,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function captureFace() {
-    if (faceVideo.readyState < 2) {
+    if (faceVideo.readyState < 2 || faceVideo.videoWidth === 0 || faceVideo.videoHeight === 0) {
       showToast('Vídeo não está pronto.', 'error');
-      console.error('Vídeo não pronto para captura:', { readyState: faceVideo.readyState });
+      console.error('Vídeo não pronto para captura:', { readyState: faceVideo.readyState, width: faceVideo.videoWidth, height: faceVideo.videoHeight });
       isCapturing = false;
       detectionActive = true;
       detectFaces();
@@ -300,6 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceInstructions.classList.add('hidden');
     faceFeedback.classList.add('hidden');
     faceOverlay.innerHTML = '';
+    captureButton.classList.add('hidden');
     lastCaptureTime = Date.now();
     isCapturing = false;
   }
@@ -308,6 +339,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     confirmationModal.classList.add('hidden');
     confirmationImage.src = '';
     faceVideo.classList.remove('hidden');
+    captureButton.classList.remove('hidden');
     console.log('Repetir foto');
     startFaceCapture();
   });
@@ -315,14 +347,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   confirmButton.addEventListener('click', () => {
     sessionStorage.setItem('facePhoto', confirmationImage.src);
     confirmationModal.classList.add('hidden');
-    console.log('Foto confirmada, redirecionando para capture-face.html');
-    window.location.href = 'capture-face.html';
+    console.log('Foto confirmada, redirecionando para confirmation.html');
+    // TODO: Substitua 'confirmation.html' pela página correta do seu fluxo de aplicação
+    window.location.href = 'confirmation.html';
   });
 
   closeModalButton.addEventListener('click', () => {
     confirmationModal.classList.add('hidden');
     confirmationImage.src = '';
     faceVideo.classList.remove('hidden');
+    captureButton.classList.remove('hidden');
     console.log('Fechando modal');
     startFaceCapture();
   });
