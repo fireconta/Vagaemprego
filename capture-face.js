@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Calcular nitidez
   function calculateSharpness(canvas, ctx, box) {
     try {
-      const regionSize = Math.min(box.width, box.height) * 0.8; // Aumentado para cobrir mais área
+      const regionSize = Math.max(32, Math.min(box.width, box.height) * 0.8); // Garantir tamanho mínimo
       const x = Math.max(0, box.x + box.width / 2 - regionSize / 2);
       const y = Math.max(0, box.y + box.height / 2 - regionSize / 2);
       const imageData = ctx.getImageData(x, y, regionSize, regionSize);
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
       const sharpness = count ? laplacianSum / count : 0;
-      const normalizedSharpness = sharpness * (640 / faceVideo.videoWidth); // Normalizar com base na resolução
+      const normalizedSharpness = sharpness * (1280 / faceVideo.videoWidth); // Normalização ajustada
       console.log(`Nitidez calculada: ${sharpness}, Normalizada: ${normalizedSharpness}`);
       return normalizedSharpness;
     } catch (error) {
@@ -157,7 +157,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       console.log('Iniciando detecção de face');
       const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 });
-      const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
+      tempCtx.save();
+      tempCtx.scale(-1, 1); // Inverter para alinhar com o vídeo espelhado
+      tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
+      tempCtx.restore();
+      const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
       console.log(`Detecções: ${detections.length}`);
 
       if (detections.length === 1) {
@@ -181,10 +185,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           console.log('Rosto alinhado:', { alignedFrames, distanceToCenter, boxWidth: box.width });
 
           if (alignedFrames >= 3) {
-            tempCtx.drawImage(faceVideo, 0, 0);
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 1 && Date.now() - lastCaptureTime > 1000) {
+            if (sharpness > 0.5 || (sharpness > 0.3 && alignedFrames >= 5)) { // Bypass para nitidez marginal
               console.log('Captura disparada:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
@@ -255,10 +258,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
 
-    // Inverter a imagem no canvas para corrigir o espelhamento
-    ctx.scale(-1, 1);
-    ctx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
-    ctx.scale(-1, 1); // Restaurar a transformação
+    ctx.drawImage(faceVideo, 0, 0); // Sem transformação, já que o vídeo está corrigido pelo CSS
 
     try {
       const imageData = faceCanvas.toDataURL('image/jpeg', 0.95);
