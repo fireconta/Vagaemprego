@@ -93,7 +93,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      let constraints = { video: { width: { ideal: 240 }, height: { ideal: 180 } } };
+      let constraints = {
+        video: {
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 },
+          facingMode: { exact: "user" }
+        }
+      };
 
       if (videoDevices.length > 0) {
         const frontCamera = videoDevices.find(device => device.label.toLowerCase().includes('front')) || videoDevices[0];
