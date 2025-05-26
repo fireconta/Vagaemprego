@@ -196,7 +196,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (alignedFrames >= 3) {
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 0.25) {
+            if (sharpness > 0.06) {
               console.log('Captura disparada:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
