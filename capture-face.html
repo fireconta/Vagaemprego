@@ -6,13 +6,12 @@
   <title>Captura de Rosto</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <script type="text/javascript">
     var gk_isXlsx = false;
     var gk_xlsxFileLookup = {};
-    var gkFaces = {};
+    var gk_fileData = {};
     function filledCell(cell) {
       return cell !== '' && cell != null;
     }
@@ -24,12 +23,13 @@
           var worksheet = workbook.Sheets[firstSheetName];
           var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: true, defval: '' });
           var filteredData = jsonData.filter(row => row.some(filledCell));
-          var headerRowIndex = filteredData.findIndex((row, rowIndex) =>
-            filteredData[rowIndex + 1] && row.filter(filledCell).length >= filteredData[rowIndex + 1].filter(filledCell).length);
+          var headerRowIndex = filteredData.findIndex((row, index) =>
+            filteredData[index + 1] && row.filter(filledCell).length >= filteredData[index + 1].filter(filledCell).length
+          );
           if (headerRowIndex === -1 || headerRowIndex > 25) {
             headerRowIndex = 0;
           }
-          var csv = XLSX.utils.aoa_to_sheet(filteredData);
+          var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
           csv = XLSX.utils.sheet_to_csv(csv);
           return csv;
         } catch (e) {
@@ -42,7 +42,7 @@
   </script>
   <style>
     body {
-      background: linear-gradient(to bottom, #1e40af, #ffffff);
+      background: linear-gradient(to bottom, #1e40af, #60a5fa);
       font-family: 'Poppins', sans-serif;
       min-height: 100vh;
       margin: 0;
@@ -197,12 +197,12 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      transition: background 0.2s, color 0.2s;
+      transition: background 0.2s;
     }
     .instructions-panel li.active {
       background: rgba(59, 130, 246, 0.1);
       color: #3b82f6;
-      border-radius: 8px;
+      border-radius: 10px;
       padding: 4px 8px;
     }
     @keyframes slideInTop {
@@ -217,9 +217,9 @@
       background: rgba(0, 0, 0, 0.75);
       color: white;
       padding: 12px 24px;
-      border-radius: 12px;
+      border-radius: 5px;
       font-size: clamp(14px, 2vw, 16px);
-      font-weight: 500;
+      font-weight: normal;
       z-index: 1002;
       max-width: 90%;
     }
@@ -238,23 +238,23 @@
     }
     .toast {
       position: fixed;
-      bottom: 24px;
-      right: 24px;
-      padding: 12px 24px;
-      border-radius: 12px;
+      bottom: 16px;
+      right: 16px;
+      padding: 10px 20px;
+      border-radius: 8px;
       color: white;
       font-weight: 600;
       z-index: 1004;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
     .toast-error { background: #ef4444; }
     .toast-success { background: #10b981; }
     .retry-button {
       background: #3b82f6;
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 6px 12px;
       font-size: 14px;
       color: white;
@@ -291,13 +291,6 @@
     }
     @keyframes spin {
       to { transform: rotate(360deg); }
-    }
-    #particles-js {
-      position: fixed;
-      width: 100vw;
-      height: 100vh;
-      z-index: 999;
-      pointer-events: none;
     }
     @media (max-width: 640px) {
       .instructions-panel {
@@ -338,7 +331,6 @@
   </style>
 </head>
 <body role="application" aria-label="Aplicação de captura de rosto">
-  <div id="particles-js" aria-hidden="true"></div>
   <div class="capture-container">
     <video id="face-video" class="hidden" autoplay playsinline muted aria-hidden="true"></video>
     <canvas id="face-canvas" class="hidden" aria-hidden="true"></canvas>
