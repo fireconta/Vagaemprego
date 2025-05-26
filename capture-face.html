@@ -191,35 +191,38 @@
       font-size: 20px;
       font-weight: 600;
       z-index: 1002;
-      max-width: 90%;
+      max-width: 300px;
       text-align: center;
-      animation: fadeIn 0.5s ease-in-out;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
       to { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
     .toast {
       position: fixed;
       bottom: 16px;
-      right: 16px;
-      padding: 10px 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
       border-radius: 8px;
       color: white;
       font-weight: 600;
-      z-index: 1004;
-      box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
+      font-size: 16px;
+      z-index: 5;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
       display: flex;
       align-items: center;
       gap: 8px;
-      role: alert;
+      max-width: 90%;
+      animation: fadeIn 0.5s ease-in-out;
+      text-align: center;
     }
     .toast-error { background: #ef4444; }
     .toast-success { background: #10b981; }
     .toast-warning { background: #f59e0b; }
     .retry-button {
       background: #3b82f6;
-      border-radius: 6px;
+      border-radius: 4px;
       padding: 6px 12px;
       font-size: 14px;
       color: white;
@@ -227,20 +230,20 @@
       transition: background 0.2s;
     }
     .retry-button:hover {
-      background: #06b6d4;
+      background: #2563eb;
     }
     .model-loading {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0, 0.7);
       color: white;
       padding: 16px 32px;
-      border-radius: 12px;
+      border-radius: 8px;
       font-size: 18px;
       font-weight: 600;
-      z-index: 1003;
+      z-index: 1004;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -259,22 +262,22 @@
     }
     @media (max-width: 640px) {
       .face-feedback {
-        bottom: 100px;
-        font-size: 18px;
+        bottom: 40px;
+        font-size: 14px;
         padding: 12px 24px;
+        max-width: 90%;
       }
       .confirmation-modal img {
         max-width: 90%;
-        max-height: 70%;
+        max-height: 60%;
       }
       .confirmation-modal .buttons {
         bottom: 16px;
-        flex-direction: column;
         gap: 0.5rem;
       }
       .confirmation-modal .modal-button {
         padding: 10px 20px;
-        font-size: 16px;
+        font-size: 14px;
       }
       .face-oval {
         width: 60vw;
@@ -282,26 +285,32 @@
         max-width: 300px;
         max-height: 400px;
       }
+      .toast {
+        font-size: 12px;
+        padding: 10px 16px;
+        bottom: 100px;
+        max-width: 80%;
+      }
     }
   </style>
 </head>
-<body role="application" aria-label="Aplicação de captura de rosto">
+<body>
   <div class="capture-container">
-    <video id="face-video" class="hidden" autoplay playsinline muted aria-hidden="true"></video>
-    <canvas id="face-canvas" class="hidden" aria-hidden="true"></canvas>
-    <div id="face-overlay" class="face-overlay"></div>
-    <div id="face-feedback" class="face-feedback hidden" aria-live="assertive"></div>
-    <div id="confirmationModal" class="confirmation-modal hidden">
-      <img id="confirmationImage" src="" alt="Foto capturada para verificação">
-      <button class="close" aria-label="Fechar modal">×</button>
+    <video id="face-video" class="hidden" autoplay playsinline muted></video>
+    <canvas id="face-canvas" class="hidden"></canvas>
+    <div id="face-overlay"></div>
+    <div id="face-feedback" class="face-feedback hidden"></div>
+    <div id="modal" class="confirmation-modal hidden">
+      <img id="photo" src="">
+      <button class="close">×</button>
       <div class="buttons">
-        <button class="modal-button retake" aria-label="Repetir captura">Repetir</button>
-        <button class="modal-button confirm" aria-label="Confirmar foto">Confirmar</button>
+        <button class="modal-button retake">Repetir</button>
+        <button class="modal-button confirm">Confirmar</button>
       </div>
     </div>
-    <div id="toast" class="toast hidden" aria-live="polite"></div>
+    <div id="toast" class="toast hidden"></div>
   </div>
-  <div id="modelLoading" class="model-loading hidden" aria-live="polite">Carregando modelos...</div>
+  <div id="model-loading" class="model-loading hidden">Iniciando câmera e modelos...</div>
   <script src="capture-face.js"></script>
 </body>
 </html>
