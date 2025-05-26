@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const confirmationImage = document.getElementById('confirmationImage');
   const retakeButton = confirmationModal.querySelector('.retake');
   const confirmButton = confirmationModal.querySelector('.confirm');
-  const closeModalButton = document.querySelector('.close');
+  const closeModalButton = confirmationModal.querySelector('.close');
   const toast = document.getElementById('toast');
   const modelLoading = document.getElementById('modelLoading');
 
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   sessionStorage.removeItem('facePhoto');
 
   async function loadModels() {
-    const path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/weights/';
+    const path = '/models';
     try {
       console.log(`Carregando modelos de: ${path}`);
       const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao carregar modelos')), 12000));
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(startFaceCapture, 2000);
   } catch (error) {
     modelLoading.classList.add('hidden');
-    showToast('Falha ao carregar modelos. Verifique sua conexão ou tente novamente mais tarde.', 'error');
+    showToast(`Erro ao carregar modelos: ${error.message}. Verifique sua conexão e tente novamente.`, 'error');
     console.error('Falha na inicialização:', error);
     return;
   }
