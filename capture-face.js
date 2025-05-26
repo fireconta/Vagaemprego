@@ -18,8 +18,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   let lastCaptureTime = 0;
   let alignedFrames = 0;
   let detectionActive = false;
+  let faceDetected = false;
   let tempCanvas = document.createElement('canvas');
   let tempCtx = tempCanvas.getContext('2d');
+  let captureButton = null;
 
   // Garantir que o modal esteja oculto no início
   confirmationModal.classList.add('hidden');
@@ -27,24 +29,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   sessionStorage.removeItem('facePhoto');
 
   async function loadModels() {
-    const path = '/models';
-    try {
-      console.log(`Carregando modelos de: ${path}`);
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao carregar modelos')), 12000));
-      await Promise.race([
-        Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(path),
-          faceapi.nets.faceLandmark68Net.loadFromUri(path)
-        ]),
-        timeout
-      ]);
-      console.log('Modelos carregados com sucesso');
-      showToast('Modelos carregados!', 'success');
-      return true;
-    } catch (error) {
-      console.error('Erro ao carregar modelos:', error);
-      throw new Error(error.message);
+    const paths = ['./weights', '/weights'];
+    for (const path of paths) {
+      try {
+        console.log(`Tentando carregar modelos de: ${path}`);
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao carregar modelos')), 12000));
+        await Promise.race([
+          Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri(path),
+            faceapi.nets.faceLandmark68Net.loadFromUri(path)
+          ]),
+          timeout
+        ]);
+        console.log(`Modelos carregados com sucesso de: ${path}`);
+        showToast('Modelos carregados com sucesso!', 'success');
+        return true;
+      } catch (error) {
+        console.error(`Erro ao carregar modelos de ${path}:`, error);
+      }
     }
+    throw new Error('Falha ao carregar modelos de todos os caminhos tentados.');
   }
 
   modelLoading.classList.remove('hidden');
@@ -54,8 +58,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(startFaceCapture, 2000);
   } catch (error) {
     modelLoading.classList.add('hidden');
-    showToast(`Erro ao carregar modelos: ${error.message}. Verifique sua conexão e tente novamente.`, 'error');
-    console.error('Falha na inicialização:', error);
+    showToast('Erro ao carregar os modelos de detecção facial. Verifique os arquivos na pasta weights.', 'error');
+    console.error('Erro final ao carregar modelos:', error);
     return;
   }
 
@@ -123,6 +127,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       faceVideo.classList.remove('hidden');
       faceVideo.classList.add('fullscreen-video');
       faceInstructions.classList.remove('hidden');
+
+      // Criar botão de captura
+      if (!captureButton) {
+        captureButton = document.createElement('button');
+        captureButton.classList.add('capture-button', 'disabled');
+        captureButton.textContent = 'Capturar';
+        document.body.appendChild(captureButton);
+      }
 
       faceOverlay.innerHTML = '';
       const oval = document.createElement('div');
@@ -220,6 +232,9 @@ document.addEventListener('DOMContentLoaded', async () => {
           alignedFrames++;
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
+          captureButton.classList.remove('disabled');
+          captureButton.classList.add('enabled');
+          faceDetected = true;
           console.log('Rosto alinhado:', { alignedFrames, distanceToOval, boxWidth: box.width });
 
           if (alignedFrames >= 3) {
@@ -230,6 +245,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
               detectionActive = false;
+              captureButton.classList.add('disabled');
               startCountdown();
               return;
             } else {
@@ -241,12 +257,18 @@ document.addEventListener('DOMContentLoaded', async () => {
           alignedFrames = 0;
           faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Alinhe o rosto no oval' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
+          captureButton.classList.add('disabled');
+          captureButton.classList.remove('enabled');
+          faceDetected = false;
           console.log('Rosto desalinhado:', { distanceToOval, boxWidth: box.width });
         }
       } else {
         alignedFrames = 0;
         faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
         faceFeedback.classList.remove('hidden');
+        captureButton.classList.add('disabled');
+        captureButton.classList.remove('enabled');
+        faceDetected = false;
         console.log('Detecção inválida:', { detectionCount: detections.length });
       }
     } catch (error) {
@@ -316,8 +338,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceInstructions.classList.add('hidden');
     faceFeedback.classList.add('hidden');
     faceOverlay.innerHTML = '';
+    if (captureButton) captureButton.remove();
     lastCaptureTime = Date.now();
     isCapturing = false;
+  }
+
+  if (captureButton) {
+    captureButton.addEventListener('click', () => {
+      if (faceDetected) {
+        isCapturing = true;
+        detectionActive = false;
+        captureButton.classList.add('disabled');
+        startCountdown();
+      } else {
+        showToast('Posicione o rosto corretamente antes de capturar.', 'error');
+      }
+    });
   }
 
   retakeButton.addEventListener('click', () => {
@@ -331,9 +367,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   confirmButton.addEventListener('click', () => {
     sessionStorage.setItem('facePhoto', confirmationImage.src);
     confirmationModal.classList.add('hidden');
-    console.log('Foto confirmada, redirecionando para confirmation.html');
-    // TODO: Substitua 'confirmation.html' pela página correta do seu fluxo de aplicação
-    window.location.href = 'confirmation.html';
+    console.log('Foto confirmada, redirecionando');
+    const urlParams = new URLSearchParams(window.location.search);
+    const returnPage = urlParams.get('return') || 'index.html';
+    window.location.href = returnPage;
   });
 
   closeModalButton.addEventListener('click', () => {
