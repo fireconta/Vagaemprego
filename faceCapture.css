@@ -6,6 +6,7 @@
   top: 0;
   left: 0;
   z-index: 1;
+  transform: scaleX(-1); /* Inverte o vídeo para corrigir o espelhamento */
 }
 
 #face-overlay {
@@ -16,6 +17,7 @@
   height: 100vh;
   z-index: 2;
   pointer-events: none;
+  transform: scaleX(-1); /* Inverte o overlay para alinhar com o vídeo */
 }
 
 .face-oval {
