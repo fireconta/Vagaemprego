@@ -3,25 +3,354 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Captura de Rosto</title>
-  <link rel="stylesheet" href="capture-face.css">
+  <meta name="description" content="Aplicação para captura de rosto para validação facial - Vagaemprego">
+  <meta name="author" content="fireconta">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Captura de Rosto - Vagaemprego</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(to bottom, #1e40af, #60a5fa);
+      font-family: 'Poppins', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+    }
+    .capture-container {
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+      padding: 2.5rem;
+      max-width: 800px;
+      width: 90%;
+      text-align: center;
+    }
+    .fullscreen-video {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 1000;
+      background: rgba(0, 0, 0, 0.9);
+      transform: scaleX(-1); /* Corrige espelhamento */
+    }
+    .capture-button {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1001;
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(to bottom, #ef4444, #dc2626);
+      border: 4px solid white;
+      border-radius: 50%;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .capture-button.enabled {
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.1); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+    .capture-button:hover {
+      transform: translateX(-50%) scale(1.15);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+    }
+    .capture-button:active {
+      transform: translateX(-50%) scale(0.95);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+    .capture-button::before {
+      content: '';
+      width: 60px;
+      height: 60px;
+      background: white;
+      border-radius: 50%;
+    }
+    .confirmation-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1003;
+    }
+    .confirmation-modal img {
+      max-width: 85%;
+      max-height: 85%;
+      border-radius: 16px;
+      cursor: zoom-in;
+      transition: transform 0.3s, border-color 0.3s;
+      border: 3px solid #3b82f6;
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    .confirmation-modal img:focus {
+      border-color: #06b6d4;
+    }
+    .confirmation-modal img.zoomed {
+      transform: scale(1.6);
+    }
+    .confirmation-modal button.close {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: #ef4444;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      font-size: 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .confirmation-modal button.close:hover {
+      background: #dc2626;
+    }
+    .confirmation-modal .buttons {
+      position: absolute;
+      bottom: 24px;
+      display: flex;
+      gap: 1rem;
+    }
+    .confirmation-modal .modal-button {
+      background: #3b82f6;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 18px;
+      font-weight: 600;
+      color: white;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .confirmation-modal .modal-button:hover {
+      background: #06b6d4;
+      transform: translateY(-2px);
+    }
+    .confirmation-modal .modal-button.confirm {
+      background: #10b981;
+    }
+    .confirmation-modal .modal-button.confirm:hover {
+      background: #059669;
+    }
+    .face-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1001;
+      pointer-events: none;
+      transform: scaleX(-1); /* Alinha com vídeo espelhado */
+    }
+    .face-oval {
+      position: absolute;
+      width: 70%;
+      height: 85%;
+      top: 7.5%;
+      left: 15%;
+      border: 4px dashed #10b981;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
+    }
+    .face-oval.aligned {
+      border-color: #10b981;
+      border-style: solid;
+    }
+    .face-instructions {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: clamp(16px, 2.5vw, 18px);
+      font-weight: 600;
+      z-index: 1001;
+      animation: slideDown 0.5s ease-out;
+      word-break: break-word;
+      max-width: 90%;
+    }
+    @keyframes slideDown {
+      from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+    .face-feedback {
+      position: fixed;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-size: clamp(14px, 2vw, 16px);
+      font-weight: 500;
+      z-index: 1001;
+      word-break: break-word;
+      max-width: 90%;
+    }
+    .countdown {
+      position: fixed;
+      bottom: 200px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 28px;
+      font-weight: 700;
+      z-index: 1001;
+      background: rgba(0, 0, 0, 0.75);
+      padding: 12px 24px;
+      border-radius: 12px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 24px;
+      border-radius: 12px;
+      color: white;
+      font-weight: 600;
+      z-index: 1002;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s;
+    }
+    .toast-error { background: #ef4444; }
+    .toast-success { background: #10b981; }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; }
+    }
+    .model-loading {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      z-index: 1001;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .model-loading.error {
+      background: #ef4444;
+    }
+    .model-loading::after {
+      content: '';
+      width: 20px;
+      height: 20px;
+      border: 3px solid white;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+  </style>
 </head>
 <body>
-  <video id="face-video" autoplay class="hidden"></video>
-  <canvas id="face-canvas" class="hidden"></canvas>
-  <div id="face-overlay"></div>
-  <div id="face-instructions" class="hidden">Posicione seu rosto no oval</div>
-  <div id="face-feedback" class="hidden"></div>
-  <div id="countdown" class="hidden"></div>
-  <div id="confirmationModal" class="hidden">
-    <img id="confirmationImage">
-    <button class="retake">Repetir</button>
-    <button class="confirm">Confirmar</button>
-    <button class="close">Fechar</button>
-  </div>
-  <div id="toast" class="hidden"></div>
-  <div id="modelLoading">Carregando modelos...</div>
+  <script type="text/javascript">
+    var gk_isXlsx = false;
+    var gk_xlsxFileLookup = {};
+    var gk_fileData = {};
+    function filledCell(cell) {
+      return cell !== '' && cell != null;
+    }
+    function loadFileData(filename) {
+      if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+        try {
+          var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+          var firstSheetName = workbook.SheetNames[0];
+          var worksheet = workbook.Sheets[firstSheetName];
+          var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+          var filteredData = jsonData.filter(row => row.some(filledCell));
+          var headerRowIndex = filteredData.findIndex((row, index) =>
+            row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+          );
+          if (headerRowIndex === -1 || headerRowIndex > 25) {
+            headerRowIndex = 0;
+          }
+          var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+          csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+          return csv;
+        } catch (e) {
+          console.error(e);
+          return "";
+        }
+      }
+      return gk_fileData[filename] || "";
+    }
+  </script>
+  <main class="capture-container" role="main" aria-labelledby="capture-title">
+    <h1 id="capture-title" class="text-3xl font-bold mb-6 text-gray-900">Captura de Rosto</h1>
+    <p class="text-gray-700 mb-4">Posicione seu rosto dentro do oval e aguarde a captura automática.</p>
+    <video id="face-video" class="hidden fullscreen-video" autoplay playsinline aria-label="Vídeo da câmera frontal"></video>
+    <canvas id="face-canvas" class="hidden" aria-hidden="true"></canvas>
+    <div id="face-overlay" class="face-overlay" aria-hidden="true"></div>
+    <div id="face-instructions" class="face-instructions hidden" role="alert">Posicione seu rosto no oval maior</div>
+    <div id="face-feedback" class="face-feedback hidden" role="alert"></div>
+    <div id="countdown" class="countdown hidden" role="alert" aria-live="assertive"></div>
+    <div id="confirmationModal" class="confirmation-modal hidden" role="dialog" aria-labelledby="modal-title" aria-modal="true">
+      <h2 id="modal-title" class="hidden">Confirmar Foto</h2>
+      <img id="confirmationImage" src="" alt="Foto capturada para confirmação" aria-describedby="modal-instructions">
+      <p id="modal-instructions" class="hidden">Clique na imagem para ampliar. Escolha uma opção abaixo.</p>
+      <button class="close" aria-label="Fechar modal e repetir captura">×</button>
+      <div class="buttons">
+        <button class="modal-button retake" aria-label="Repetir captura da foto">Repetir</button>
+        <button class="modal-button confirm" aria-label="Confirmar foto capturada">Confirmar</button>
+      </div>
+    </div>
+    <div id="toast" class="toast hidden" role="alert" aria-live="polite"></div>
+    <div id="modelLoading" class="model-loading" role="alert">Carregando modelos...</div>
+  </main>
+  <script>
+    // Fallback para navegadores sem suporte à câmera
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      const modelLoading = document.getElementById('modelLoading');
+      modelLoading.textContent = 'Erro: Seu navegador não suporta acesso à câmera.';
+      modelLoading.classList.add('error');
+      console.error('API de câmera não suportada.');
+    }
+  </script>
   <script src="capture-face.js"></script>
 </body>
 </html>
