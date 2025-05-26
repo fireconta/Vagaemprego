@@ -39,11 +39,11 @@
       left: 50%;
       transform: translate(-50%, -50%);
       width: 30vw;
-      min-width: 220px;
-      max-width: 320px;
+      min-width: 200px;
+      max-width: 300px;
       height: 40vh;
-      min-height: 300px;
-      max-height: 400px;
+      min-height: 280px;
+      max-height: 380px;
       border: 4px solid #8b5cf6;
       border-radius: 50%;
       box-shadow: 0 0 12px rgba(139, 92, 246, 0.7);
@@ -63,28 +63,28 @@
     }
     .face-instructions {
       position: fixed;
-      bottom: 24px;
+      bottom: 20px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.75);
       color: white;
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-size: clamp(14px, 2vw, 16px);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: clamp(12px, 1.8vw, 14px);
       font-weight: 600;
       z-index: 1001;
       max-width: 90%;
     }
     .face-feedback {
       position: fixed;
-      top: 16px;
+      top: 12px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.75);
       color: white;
-      padding: 10px 20px;
-      border-radius: 10px;
-      font-size: clamp(12px, 1.8vw, 14px);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: clamp(10px, 1.6vw, 12px);
       font-weight: 500;
       z-index: 1001;
       max-width: 90%;
@@ -96,12 +96,12 @@
       left: 50%;
       transform: translate(-50%, -50%);
       color: white;
-      font-size: 36px;
+      font-size: 32px;
       font-weight: 700;
       z-index: 1001;
       background: rgba(0, 0, 0, 0.75);
-      padding: 14px 28px;
-      border-radius: 14px;
+      padding: 12px 24px;
+      border-radius: 12px;
       transition: opacity 0.3s;
     }
     .confirmation-modal {
@@ -131,15 +131,15 @@
     }
     .confirmation-modal button.close {
       position: absolute;
-      top: 16px;
-      right: 16px;
+      top: 12px;
+      right: 12px;
       background: #ef4444;
       color: white;
       border: none;
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      font-size: 20px;
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
       cursor: pointer;
       transition: background 0.2s;
     }
@@ -148,15 +148,15 @@
     }
     .confirmation-modal .buttons {
       position: absolute;
-      bottom: 16px;
+      bottom: 12px;
       display: flex;
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
     .confirmation-modal .modal-button {
       background: #8b5cf6;
-      border-radius: 8px;
-      padding: 10px 20px;
-      font-size: 16px;
+      border-radius: 6px;
+      padding: 8px 16px;
+      font-size: 14px;
       font-weight: 600;
       color: white;
       transition: background 0.2s, transform 0.2s;
@@ -173,10 +173,10 @@
     }
     .toast {
       position: fixed;
-      bottom: 16px;
-      right: 16px;
-      padding: 10px 20px;
-      border-radius: 8px;
+      bottom: 12px;
+      right: 12px;
+      padding: 8px 16px;
+      border-radius: 6px;
       color: white;
       font-weight: 600;
       z-index: 1002;
@@ -199,19 +199,19 @@
       transform: translate(-50%, -50%);
       background: rgba(0, 0, 0, 0.75);
       color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 16px;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 14px;
       font-weight: 600;
       z-index: 1001;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .model-loading::after {
       content: '';
-      width: 16px;
-      height: 16px;
+      width: 14px;
+      height: 14px;
       border: 3px solid white;
       border-top-color: transparent;
       border-radius: 50%;
