@@ -1,5 +1,4 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  // Verificar se o protocolo é HTTPS
   if (window.location.protocol !== 'https:') {
     console.error('Erro: getUserMedia requer HTTPS. Execute o site em um servidor HTTPS.');
     showToast('Este site requer HTTPS para acessar a câmera. Use um servidor seguro ou ngrok para testes.', 'error', false);
@@ -50,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadModels(attempt = 1, maxAttempts = 3) {
-    const path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
+    let path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
     try {
       console.log(`Tentativa ${attempt} de carregar modelos de: ${path}`);
       await Promise.all([
@@ -61,14 +60,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       showToast('Modelos carregados!', 'success');
       return true;
     } catch (error) {
-      console.error(`Erro ao carregar modelos (tentativa ${attempt}):`, error);
+      console.error(`Erro ao carregar modelos do GitHub (tentativa ${attempt}):`, error);
       if (attempt < maxAttempts) {
-        console.log(`Tentando novamente em 3 segundos...`);
+        if (attempt === maxAttempts - 1) {
+          path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/'; // Fallback para CDN
+          console.log(`Tentando fallback para: ${path}`);
+        }
         await new Promise(resolve => setTimeout(resolve, 3000));
         return loadModels(attempt + 1, maxAttempts);
       }
-      showToast('Falha ao carregar modelos de detecção facial. A câmera ainda pode ser usada.', 'error', true);
-      return false; // Continuar mesmo com falha nos modelos
+      showToast('Falha ao carregar modelos de detecção facial.', 'warning', true);
+      return false;
     }
   }
 
@@ -92,7 +94,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       faceVideo.classList.remove('hidden');
       faceVideo.classList.add('fullscreen-video');
 
-      // Forçar visibilidade do vídeo
       faceVideo.style.display = 'block';
       faceVideo.style.visibility = 'visible';
       faceVideo.style.zIndex = '1000';
@@ -100,8 +101,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       faceOverlay.innerHTML = '';
       const oval = document.createElement('div');
       oval.classList.add('face-oval');
-      oval.style.width = '300px';
-      oval.style.height = '400px';
       oval.style.position = 'absolute';
       oval.style.top = '50%';
       oval.style.left = '50%';
@@ -111,7 +110,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         screenWidth: window.innerWidth,
         screenHeight: window.innerHeight,
         ovalTop: oval.style.top,
-        ovalLeft: oval.style.left
+        ovalLeft: oval.style.left,
+        ovalWidth: getComputedStyle(oval).width,
+        ovalHeight: getComputedStyle(oval).height
       });
 
       await new Promise((resolve, reject) => {
@@ -146,9 +147,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       let errorMessage = 'Erro ao iniciar a câmera. Verifique a conexão e tente novamente.';
       if (error.name === 'NotAllowedError') {
-        errorMessage = 'Permissão de câmera negada. Habilite a câmera nas configurações do navegador e tente novamente.';
+        errorMessage = 'Permissão de câmera negada. Habilite a câmera nas configurações do navegador.';
       } else if (error.name === 'NotFoundError') {
-        errorMessage = 'Nenhuma câmera encontrada. Conecte uma câmera e tente novamente.';
+        errorMessage = 'Nenhuma câmera encontrada. Conecte uma câmera.';
       } else if (error.name === 'NotReadableError') {
         errorMessage = 'Câmera em uso por outro aplicativo. Feche-o e tente novamente.';
       }
@@ -182,9 +183,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
+      if (!tempCanvas.width || !tempCanvas.height) {
+        console.warn('Canvas temporário não inicializado, reiniciando...');
+        tempCanvas.width = faceVideo.videoWidth;
+        tempCanvas.height = faceVideo.videoHeight;
+      }
+
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
       tempCtx.save();
-      tempCtx.scale(-1,  O);
+      tempCtx.scale(-1, 1); // Corrigido erro de sintaxe
       tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
       tempCtx.restore();
       const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
@@ -207,7 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const landmarks = detections[0].landmarks;
         const nose = landmarks.getNose()[0];
 
-        const noseScreenX = screenWidth - nose.x * scaleX;
+        const noseScreenX = screenWidth - nose.x * scaleX; // Ajustado para espelhamento
         const noseScreenY = nose.y * scaleY;
         const distanceToOval = Math.sqrt(
           (noseScreenX - ovalCenterX) ** 2 + (noseScreenY - ovalCenterY) ** 2
@@ -250,8 +257,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         highlightInstruction(detections.length === 0 ? 'instruction-alignment' : 'instruction-no-accessories');
       }
     } catch (error) {
-      console.error('Erro na detecção:', error);
-      showToast('Erro na detecção facial. A câmera ainda está ativa.', 'error', true);
+      console.error('Erro na detecção facial:', error);
+      showToast('Erro na detecção facial. Verifique a iluminação ou tente novamente.', 'error', true);
     }
 
     if (detectionActive) {
@@ -405,7 +412,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function initialize() {
     modelLoading.classList.remove('hidden');
     try {
-      // Iniciar a câmera mesmo se os modelos falharem
       await startFaceCapture();
       const modelsLoaded = await loadModels();
       if (!modelsLoaded) {
