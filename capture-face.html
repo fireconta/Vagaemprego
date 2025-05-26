@@ -78,11 +78,11 @@
       color: white;
       border: none;
       border-radius: 50%;
-      width: 48px;
-      height: 48px;
+      width: 44px;
+      height: 44px;
       font-size: 24px;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: background 0.3s;
     }
     .confirmation-modal button.close:hover {
       background: #dc2626;
@@ -93,23 +93,23 @@
       display: flex;
       gap: 1rem;
     }
-    .confirmation-modal .modal-button {
+    .modal-button {
       background: #3b82f6;
       border-radius: 12px;
       padding: 12px 24px;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 600;
       color: white;
       transition: background 0.2s, transform 0.2s;
     }
-    .confirmation-modal .modal-button:hover {
+    .modal-button:hover {
       background: #06b6d4;
       transform: translateY(-2px);
     }
-    .confirmation-modal .modal-button.confirm {
+    .modal-button.confirm {
       background: #10b981;
     }
-    .confirmation-modal .modal-button.confirm:hover {
+    .modal-button.confirm:hover {
       background: #059669;
     }
     .face-overlay {
@@ -122,46 +122,43 @@
       pointer-events: none;
     }
     .face-oval {
-      border: 4px dashed #10b981;
+      border: 50% solid #10b981;
       border-radius: 50%;
-      animation: pulse 2s infinite;
-      box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
-      width: 40vw;
-      height: 53.33vw;
-      max-width: 400px;
-      max-height: 533px;
-      min-width: 250px;
-      min-height: 333px;
+      width: 35vw;
+      height: 52.5vw;
+      max-width: 300px;
+      max-height: 450px;
+      min-width: 200px;
+      min-height: 300px;
       position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+      background: transparent;
     }
-    .face-oval.aligned {
+    .face-oval.active {
       border-color: #10b981;
-      border-style: solid;
-      box-shadow: 0 0 16px rgba(16, 185, 129, 0.8);
+      animation: solid 0.3s forwards;
     }
-    @keyframes pulse {
-      0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-      50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.7; }
-      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    @keyframes solid {
+      to { border-style: dashed;
     }
     .face-feedback {
       position: fixed;
-      bottom: 60px;
+      bottom: 80px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.85);
       color: white;
-      padding: 16px 32px;
+      padding: 14px 24px;
       border-radius: 8px;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 600;
       z-index: 1002;
-      max-width: 90%;
+      max-width: 80%;
       text-align: center;
-      animation: fadeIn 0.5s ease-in-out;
+      animation: fadeIn 0s.5 ease-in-out;
     }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateX(-50%) translateY(10px); }
@@ -172,8 +169,8 @@
       bottom: 16px;
       left: 50%;
       transform: translateX(-50%);
-      padding: 12px 24px;
-      border-radius: 8px;
+      padding: 14px 24px;
+      border-radius: 10px;
       color: white;
       font-weight: 600;
       font-size: 16px;
@@ -181,7 +178,7 @@
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       role: alert;
       max-width: 90%;
     }
@@ -206,21 +203,21 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0.8);
       color: white;
-      padding: 16px 24px;
-      border-radius: 12px;
-      font-size: 16px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
       font-weight: 600;
       z-index: 1004;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
     .model-loading::after {
       content: '';
-      width: 20px;
-      height: 20px;
+      width: 14px;
+      height: 14px;
       border: 2px solid white;
       border-top-color: transparent;
       border-radius: 50%;
@@ -233,9 +230,9 @@
       position: fixed;
       top: 10px;
       left: 10px;
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0.7);
       color: white;
-      padding: 8px;
+      padding: 6px;
       border-radius: 4px;
       font-size: 12px;
       z-index: 1007;
@@ -247,9 +244,9 @@
       transform: translate(-50%, -50%);
       background: #3b82f6;
       color: white;
-      padding: 16px 24px;
+      padding: 14px 20px;
       border-radius: 8px;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 600;
       cursor: pointer;
       z-index: 1003;
@@ -260,9 +257,9 @@
     }
     @media (max-width: 640px) {
       .face-feedback {
-        bottom: 80px;
-        font-size: 16px;
-        padding: 12px 16px;
+        bottom: 70px;
+        font-size: 14px;
+        padding: 10px 16px;
       }
       .confirmation-modal img {
         max-width: 90vw;
@@ -273,19 +270,19 @@
         flex-direction: column;
         gap: 0.5rem;
       }
-      .confirmation-modal .modal-button {
+      .modal-button {
         padding: 8px 16px;
         font-size: 14px;
       }
       .face-oval {
-        width: 60vw;
-        height: 80vw;
-        max-width: 300px;
-        max-height: 400px;
+        width: 50vw;
+        height: 75vw;
+        max-width: 250px;
+        max-height: 375px;
       }
       .toast {
         font-size: 14px;
-        padding: 8px 12px;
+        padding: 8px 16px;
         max-width: 80vw;
       }
     }
@@ -495,7 +492,7 @@
         }
       }
 
-      // Detecta rostos e verifica alinhamento
+      // Detecta rostos e verifica alinhamento no oval
       async function detectFaces() {
         if (!isDetectionActive || faceVideo.paused || faceVideo.ended || isCapturing) {
           console.log('Detecção pausada:', {
@@ -531,24 +528,50 @@
           const scaleX = screenWidth / videoWidth;
           const scaleY = screenHeight / videoHeight;
           const ovalRect = oval.getBoundingClientRect();
+
+          // Coordenadas do oval na tela
+          const ovalLeft = ovalRect.left;
+          const ovalRight = ovalRect.right;
+          const ovalTop = ovalRect.top;
+          const ovalBottom = ovalRect.bottom;
           const ovalWidth = ovalRect.width;
           const ovalHeight = ovalRect.height;
-          const ovalCenterX = screenWidth / 2;
-          const ovalCenterY = screenHeight / 2;
 
           if (detections.length === 1) {
             const { box } = detections[0].detection;
-            const landmarks = detections[0].landmarks;
-            const nose = landmarks.getNose()[0];
 
-            const noseScreenX = screenWidth - nose.x * scaleX;
-            const noseScreenY = nose.y * scaleY;
-            const distanceToOval = Math.sqrt(
-              (noseScreenX - ovalCenterX) ** 2 + (noseScreenY - ovalCenterY) ** 2
+            // Coordenadas da caixa do rosto na tela (invertendo X por causa do scaleX(-1))
+            const faceLeft = screenWidth - (box.x + box.width) * scaleX;
+            const faceRight = screenWidth - box.x * scaleX;
+            const faceTop = box.y * scaleY;
+            const faceBottom = (box.y + box.height) * scaleY;
+
+            // Verifica se a caixa do rosto está dentro do oval
+            const isInsideOval = (
+              faceLeft >= ovalLeft + 0.1 * ovalWidth &&
+              faceRight <= ovalRight - 0.1 * ovalWidth &&
+              faceTop >= ovalTop + 0.1 * ovalHeight &&
+              faceBottom <= ovalBottom - 0.1 * ovalHeight
             );
-            const maxDistance = Math.min(ovalWidth, ovalHeight) * 0.35;
 
-            if (distanceToOval < maxDistance && box.width > videoWidth * 0.05) {
+            // Verifica o tamanho do rosto em relação ao oval
+            const faceWidth = box.width * scaleX;
+            const faceHeight = box.height * scaleY;
+            const minWidth = 0.8 * ovalWidth;
+            const maxWidth = 0.95 * ovalWidth;
+            const isSizeCorrect = faceWidth >= minWidth && faceWidth <= maxWidth;
+
+            console.log('Detecção:', {
+              face: { left: faceLeft, right: faceRight, top: faceTop, bottom: faceBottom },
+              oval: { left: ovalLeft, right: ovalRight, top: ovalTop, bottom: ovalBottom },
+              isInsideOval,
+              faceWidth,
+              minWidth,
+              maxWidth,
+              isSizeCorrect
+            });
+
+            if (isInsideOval && isSizeCorrect) {
               alignedFrames++;
               if (alignedFrames >= 4 && !isCapturing) {
                 oval.classList.add('aligned');
@@ -569,18 +592,27 @@
               } else {
                 faceFeedback.innerHTML = '✅ Alinhado! Aguarde...';
                 faceFeedback.classList.remove('hidden');
+                updateDebugStatus('Rosto alinhado');
               }
             } else {
               alignedFrames = 0;
               oval.classList.remove('aligned');
-              faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔ Centralize o rosto no oval' : '🔍 Aproxime';
+              if (!isInsideOval) {
+                faceFeedback.innerHTML = '↔ Ajuste o rosto ao oval';
+              } else if (faceWidth < minWidth) {
+                faceFeedback.innerHTML = '🔍 Aproxime o rosto';
+              } else {
+                faceFeedback.innerHTML = '🔍 Afastar o rosto';
+              }
               faceFeedback.classList.remove('hidden');
+              updateDebugStatus('Rosto desalinhado');
             }
           } else {
             alignedFrames = 0;
             oval.classList.remove('aligned');
             faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
             faceFeedback.classList.remove('hidden');
+            updateDebugStatus('Nenhum ou múltiplos rostos');
           }
         } catch (error) {
           console.error('Erro na detecção:', error);
