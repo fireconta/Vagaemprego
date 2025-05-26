@@ -6,7 +6,7 @@
   <title>Captura de Rosto</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.2/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <script type="text/javascript">
     var gk_isXlsx = false;
@@ -18,7 +18,7 @@
     function loadFileData(filename) {
       if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
         try {
-          var workbook = XLSX.read(gk_fileData[filename], {});
+          var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
           var firstSheetName = workbook.SheetNames[0];
           var worksheet = workbook.Sheets[firstSheetName];
           var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: true, defval: '' });
@@ -32,12 +32,12 @@
           var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
           csv = XLSX.utils.sheet_to_csv(csv);
           return csv;
-        } catch (ex) {
-          console.error('Erro ao processar XLSX:', ex);
-          return '';
+        } catch (e) {
+          console.error('Erro ao processar XLSX:', e);
+          return "";
         }
       }
-      return gk_fileData[filename] || '';
+      return gk_fileData[filename] || "";
     }
   </script>
   <style>
@@ -67,9 +67,10 @@
       width: 100vw;
       height: 100vh;
       object-fit: cover;
-      z-index: 1000;
+      z-index: 1005 !important;
       background: transparent;
       transform: scaleX(-1);
+      display: block !important;
     }
     .confirmation-modal {
       position: fixed;
@@ -191,38 +192,35 @@
       font-size: 20px;
       font-weight: 600;
       z-index: 1002;
-      max-width: 300px;
+      max-width: 90%;
       text-align: center;
+      animation: fadeIn 0.5s ease-in-out;
     }
-    @keyframes fade-in {
-      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(10px); }
       to { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
     .toast {
       position: fixed;
       bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 12px 24px;
+      right: 16px;
+      padding: 10px 20px;
       border-radius: 8px;
       color: white;
       font-weight: 600;
-      font-size: 16px;
-      z-index: 5;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      z-index: 1006;
+      box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
       display: flex;
       align-items: center;
       gap: 8px;
-      max-width: 90%;
-      animation: fadeIn 0.5s ease-in-out;
-      text-align: center;
+      role: alert;
     }
     .toast-error { background: #ef4444; }
     .toast-success { background: #10b981; }
     .toast-warning { background: #f59e0b; }
     .retry-button {
       background: #3b82f6;
-      border-radius: 4px;
+      border-radius: 6px;
       padding: 6px 12px;
       font-size: 14px;
       color: white;
@@ -230,17 +228,17 @@
       transition: background 0.2s;
     }
     .retry-button:hover {
-      background: #2563eb;
+      background: #06b6d4;
     }
     .model-loading {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.7);
+      background: rgba(0, 0, 0, 0.75);
       color: white;
       padding: 16px 32px;
-      border-radius: 8px;
+      border-radius: 12px;
       font-size: 18px;
       font-weight: 600;
       z-index: 1004;
@@ -260,24 +258,35 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    .debug-status {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      z-index: 1007;
+    }
     @media (max-width: 640px) {
       .face-feedback {
-        bottom: 40px;
-        font-size: 14px;
+        bottom: 100px;
+        font-size: 18px;
         padding: 12px 24px;
-        max-width: 90%;
       }
       .confirmation-modal img {
         max-width: 90%;
-        max-height: 60%;
+        max-height: 70%;
       }
       .confirmation-modal .buttons {
         bottom: 16px;
+        flex-direction: column;
         gap: 0.5rem;
       }
       .confirmation-modal .modal-button {
         padding: 10px 20px;
-        font-size: 14px;
+        font-size: 16px;
       }
       .face-oval {
         width: 60vw;
@@ -285,32 +294,27 @@
         max-width: 300px;
         max-height: 400px;
       }
-      .toast {
-        font-size: 12px;
-        padding: 10px 16px;
-        bottom: 100px;
-        max-width: 80%;
-      }
     }
   </style>
 </head>
-<body>
+<body role="application" aria-label="Aplicação de captura de rosto">
   <div class="capture-container">
-    <video id="face-video" class="hidden" autoplay playsinline muted></video>
-    <canvas id="face-canvas" class="hidden"></canvas>
-    <div id="face-overlay"></div>
-    <div id="face-feedback" class="face-feedback hidden"></div>
-    <div id="modal" class="confirmation-modal hidden">
-      <img id="photo" src="">
-      <button class="close">×</button>
+    <video id="face-video" class="hidden" autoplay playsinline muted aria-hidden="true"></video>
+    <canvas id="face-canvas" class="hidden" aria-hidden="true"></canvas>
+    <div id="face-overlay" class="face-overlay"></div>
+    <div id="face-feedback" class="face-feedback hidden" aria-live="assertive"></div>
+    <div id="confirmationModal" class="confirmation-modal hidden">
+      <img id="confirmationImage" src="" alt="Foto capturada para verificação">
+      <button class="close" aria-label="Fechar modal">×</button>
       <div class="buttons">
-        <button class="modal-button retake">Repetir</button>
-        <button class="modal-button confirm">Confirmar</button>
+        <button class="modal-button retake" aria-label="Repetir captura">Repetir</button>
+        <button class="modal-button confirm" aria-label="Confirmar foto">Confirmar</button>
       </div>
     </div>
-    <div id="toast" class="toast hidden"></div>
+    <div id="toast" class="toast hidden" aria-live="polite"></div>
   </div>
-  <div id="model-loading" class="model-loading hidden">Iniciando câmera e modelos...</div>
+  <div id="modelLoading" class="model-loading hidden" aria-live="polite">Iniciando câmera e modelos...</div>
+  <div id="debugStatus" class="debug-status">Inicializando...</div>
   <script src="capture-face.js"></script>
 </body>
 </html>
