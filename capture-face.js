@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async () => 
   const faceVideo = document.getElementById('face-video');
   const faceCanvas = document.getElementById('face-canvas');
   const faceOverlay = document.getElementById('face-overlay');
@@ -30,10 +30,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize particles.js
   function initParticles() {
-    console.log('Inicializando particles.js');
+    console.log('Tentando inicializar particles.js');
     if (typeof particlesJS === 'undefined') {
       console.error('particles.js não está carregado');
-      showToast('Erro: Biblioteca de partículas não carregada.', 'error');
+      showToast('Erro: Biblioteca de partículas não carregada. Verifique sua conexão.', 'error');
       return;
     }
     particlesJS('particles-js', {
