@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   let faceDetected = false;
   let tempCanvas = document.createElement('canvas');
   let tempCtx = tempCanvas.getContext('2d');
-  let captureButton = null;
 
   // Garantir que o modal esteja oculto no início
   confirmationModal.classList.add('hidden');
@@ -106,7 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         video: {
           width: { min: 640, ideal: 1280, max: 1920 },
           height: { min: 480, ideal: 720, max: 1080 },
-          facingMode: 'user' // Removido 'exact' para maior compatibilidade
+          facingMode: 'user'
         }
       };
 
@@ -117,33 +116,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       faceVideo.classList.add('fullscreen-video');
       faceInstructions.classList.remove('hidden');
 
-      // Criar botão de captura
-      if (!captureButton) {
-        captureButton = document.createElement('button');
-        captureButton.classList.add('capture-button', 'disabled');
-        captureButton.textContent = '';
-        document.body.appendChild(captureButton);
-        captureButton.addEventListener('click', () => {
-          if (faceDetected && !captureButton.classList.contains('disabled')) {
-            isCapturing = true;
-            detectionActive = false;
-            captureButton.classList.add('disabled');
-            startCountdown();
-          } else {
-            showToast('Alinhe o rosto antes de capturar.', 'error');
-          }
-        });
-      }
-
       faceOverlay.innerHTML = '';
       const oval = document.createElement('div');
       oval.classList.add('face-oval');
       oval.style.width = '300px';
       oval.style.height = '400px';
+      oval.style.position = 'absolute';
       oval.style.top = '50%';
       oval.style.left = '50%';
       oval.style.transform = 'translate(-50%, -50%)';
       faceOverlay.appendChild(oval);
+      console.log('Oval posicionado:', {
+        screenWidth: window.innerWidth,
+        screenHeight: window.innerHeight,
+        ovalTop: oval.style.top,
+        ovalLeft: oval.style.left
+      });
 
       await new Promise((resolve, reject) => {
         faceVideo.onloadedmetadata = () => {
@@ -236,9 +224,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           alignedFrames++;
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
-          captureButton.classList.remove('disabled');
-          captureButton.classList.add('enabled');
-          faceDetected = true;
 
           if (alignedFrames >= 3) {
             oval.classList.add('aligned');
@@ -250,7 +235,6 @@ document.addEventListener('DOMContentLoaded', async () => {
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
               detectionActive = false;
-              captureButton.classList.add('disabled');
               startCountdown();
               return;
             } else {
@@ -262,18 +246,12 @@ document.addEventListener('DOMContentLoaded', async () => {
           oval.classList.remove('aligned');
           faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Alinhe o rosto no oval' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
-          captureButton.classList.add('disabled');
-          captureButton.classList.remove('enabled');
-          faceDetected = false;
         }
       } else {
         alignedFrames = 0;
         oval.classList.remove('aligned');
         faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
         faceFeedback.classList.remove('hidden');
-        captureButton.classList.add('disabled');
-        captureButton.classList.remove('enabled');
-        faceDetected = false;
       }
     } catch (error) {
       console.error('Erro na detecção:', error);
@@ -386,7 +364,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceInstructions.classList.add('hidden');
     faceFeedback.classList.add('hidden');
     faceOverlay.innerHTML = '';
-    if (captureButton) captureButton.remove();
     isCapturing = false;
   }
 
@@ -394,7 +371,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     confirmationModal.classList.add('hidden');
     confirmationImage.src = '';
     faceVideo.classList.remove('hidden');
-    console.log('Fechando modal');
+    console.log('Repetindo captura');
     startFaceCapture();
   });
 
