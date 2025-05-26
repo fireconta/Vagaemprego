@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
+  // Verificar se o protocolo é HTTPS
+  if (window.location.protocol !== 'https:') {
+    console.warn('Aviso: getUserMedia requer HTTPS. Execute o site em um servidor HTTPS.');
+  }
+
   const faceVideo = document.getElementById('face-video');
   const faceCanvas = document.getElementById('face-canvas');
   const faceOverlay = document.getElementById('face-overlay');
@@ -43,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function loadModels(attempt = 1, maxAttempts = 3) {
-    const path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/weights/';
+    const path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/'; // Corrigido o caminho
     try {
       console.log(`Tentativa ${attempt} de carregar modelos de: ${path}`);
       await Promise.all([
@@ -74,8 +79,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const constraints = {
         video: {
-          width: { min: 640, ideal: 1280, max: 1920 },
-          height: { min: 480, ideal: 720, max: 1080 },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
           facingMode: 'user'
         }
       };
@@ -131,9 +136,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       let errorMessage = 'Erro ao iniciar a câmera. Verifique a conexão e tente novamente.';
       if (error.name === 'NotAllowedError') {
-        errorMessage = 'Permissão de câmera negada. Habilite nas configurações do navegador.';
+        errorMessage = 'Permissão de câmera negada. Habilite nas configurações do navegador e tente novamente.';
       } else if (error.name === 'NotFoundError') {
-        errorMessage = 'Nenhuma câmera encontrada. Conecte uma câmera.';
+        errorMessage = 'Nenhuma câmera encontrada. Conecte uma câmera e tente novamente.';
       } else if (error.name === 'NotReadableError') {
         errorMessage = 'Câmera em uso por outro aplicativo. Feche-o e tente novamente.';
       }
@@ -167,7 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.3 });
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 }); // Aumentado inputSize
       tempCtx.save();
       tempCtx.scale(-1, 1);
       tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
@@ -241,7 +246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (detectionActive) {
-      setTimeout(detectFaces, 100);
+      requestAnimationFrame(detectFaces); // Usar requestAnimationFrame para melhor desempenho
     }
   }
 
@@ -340,7 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!imageData || imageData === 'data:,') {
         throw new Error('Imagem inválida');
       }
-      confirmationImage.src = imageData);
+      confirmationImage.src = imageData; // Corrigido o erro de sintaxe
       confirmationModal.classList.remove('hidden');
       console.log('Foto capturada');
     } catch (error) {
@@ -395,7 +400,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       await startFaceCapture();
     } catch (error) {
       console.error('Erro na inicialização:', error);
-      showToast('Erro ao iniciar. Verifique a conexão.', 'error', true);
+      showToast('Erro ao iniciar. Verifique a conexão ou habilite a câmera.', 'error', true);
     } finally {
       modelLoading.classList.add('hidden');
     }
