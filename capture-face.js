@@ -1,13 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
   if (window.location.protocol !== 'https:') {
-    console.error('Erro: HTTPS necessário para getUserMedia');
     showToast('Este aplicativo requer HTTPS. Use um servidor seguro.', 'error', false);
     updateDebugStatus('Erro: HTTPS necessário');
     return;
   }
 
   const faceVideo = document.getElementById('face-video');
-  const faceCanvas = document.getElement('canvas');
+  const faceCanvas = document.getElementById('face-canvas');
   const faceOverlay = document.getElementById('face-overlay');
   const faceFeedback = document.getElementById('face-feedback');
   const confirmationModal = document.getElementById('confirmationModal');
@@ -16,63 +15,75 @@ document.addEventListener('DOMContentLoaded', () => {
   const confirmButton = document.getElementById('confirmButton');
   const closeModalButton = confirmationModal.querySelector('.close');
   const toast = document.getElementById('toast');
-  const modelLoading = document.getElementById('model-loading');
-  const debugStatus = document.getElementById('debug-status');
-  const fallbackButton = document.getElementById('fallback-button');
+  const modelLoading = document.getElementById('modelLoading');
+  const debugStatus = document.getElementById('debugStatus');
+  const fallbackButton = document.getElementById('fallbackButton');
 
   let stream = null;
   let isCapturing = false;
   let alignedFrames = 0;
   let isDetectionActive = false;
   let modelsLoaded = false;
-  let tempCtx = faceCanvas.getContext('2d');
+  const tempCanvas = document.createElement('canvas');
+  const tempCtx = tempCanvas.getContext('2d');
 
   confirmationModal.classList.add('hidden');
   confirmationImage.src = '';
+  sessionStorage.removeItem('facePhoto');
+
   function updateDebugStatus(message) {
-    debugStatus.innerText = message;
+    debugStatus.textContent = message;
     console.log(`Status: ${message}`);
   }
 
-  function showToast(message, type = 'error', showRetry = false) {
-    toast.innerHTML = message + (showRetry ? `<button class="retry-button">Tentar novamente</button>` : '');
-    toast.classList.remove('hidden');
+  function showToast(message, type = 'error', showRetry = true) {
+    toast.innerHTML = message + (showRetry ? ' <button class="retry-button">Tentar novamente</button>' : '');
     toast.className = `toast toast-${type}`;
+    toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), type === 'error' ? 10000 : 5000);
-    console.log(`Toast: ${message} (${type})`);
     if (showRetry) {
       const retryButton = toast.querySelector('.retry-button');
-      retryButton) { retryButton.removeEventListener('click', initialize);
+      retryButton.removeEventListener('click', initialize); // Evitar múltiplos listeners
       retryButton.addEventListener('click', initialize, { once: true });
     }
   }
 
   function stopStream() {
-    if (!stream) return;
-    stream.getTracks().forEach(track => track.stop());
-    stream = null;
-    faceVideo.srcObject = null;
-    console.log('Stream fechado');
-    updateDebugStatus('Stream fechado');
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+      faceVideo.srcObject = null;
+      console.log('Stream fechado');
+      updateDebugStatus('Stream fechado');
+    }
   }
 
-  async function loadModels() {
-    const path = 'https://raw.githubusercontent.com';
+  async function loadModels(attempt = 1, maxAttempts = 3) {
+    const path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
     try {
-      updateDebugStatus('Carregando modelos...');
-      console.log('Carregando modelos de ${path}');
+      console.log(`Tentativa ${attempt} de carregar modelos de ${path}`);
+      updateDebugStatus(`Carregando modelos (${attempt}/${maxAttempts})`);
       await Promise.race([
-        faceapi.nets.tinyFaceDetector.loadFromUri(path),
-        faceapi.nets.faceLandmark68Net.loadFromUri(path)
+        Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(path),
+          faceapi.nets.faceLandmark68Net.loadFromUri(path)
+        ]),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout nos modelos')), 5000))
       ]);
       modelsLoaded = true;
+      console.log('Modelos carregados');
       showToast('Modelos carregados!', 'success', false);
       updateDebugStatus('Modelos carregados');
       return true;
     } catch (error) {
-      console.error('Erro ao carregar modelos:', error);
-      showToast('Modelos não foram carregados corretamente.', 'error', true);
-      updateDebugStatus('Erro ao carregar modelos');
+      console.error(`Erro ao carregar modelos (tentativa ${attempt}):`, error);
+      updateDebugStatus(`Erro nos modelos (${attempt}/${maxAttempts})`);
+      if (attempt < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return loadModels(attempt + 1, maxAttempts);
+      }
+      showToast('Modelos não foram carregados corretamente.', 'warning', true);
+      updateDebugStatus('Falha nos modelos');
       return false;
     }
   }
@@ -82,14 +93,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const oval = document.createElement('div');
     oval.classList.add('face-oval');
     faceOverlay.appendChild(oval);
-    const ovalRect = await oval.getBoundingClientRect();
+    const ovalRect = oval.getBoundingClientRect();
     console.log('Oval posicionado:', {
-      width: window.innerWidth,
-      height: window.innerHeight,
-      left: ovalRect.left,
-      top: ovalRect.top,
-      width: ovalRect.width,
-      height: ovalRect.height
+      screenWidth: window.innerWidth,
+      screenHeight: window.innerHeight,
+      ovalLeft: ovalRect.left,
+      ovalTop: ovalRect.top,
+      ovalWidth: ovalRect.width,
+      ovalHeight: ovalRect.height
     });
     updateDebugStatus('Overlay configurado');
   }
@@ -98,8 +109,8 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       updateDebugStatus('Iniciando vídeo...');
       stopStream();
-      faceVideo.classList.remove('hidden');
       faceVideo.classList.add('fullscreen-video');
+      faceVideo.style.display = 'block';
       faceVideo.style.zIndex = '1005';
 
       const constraints = {
@@ -124,6 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
             height: faceVideo.videoHeight,
             readyState: faceVideo.readyState
           });
+          tempCanvas.width = faceVideo.videoWidth;
+          tempCanvas.height = faceVideo.videoHeight;
           faceCanvas.width = faceVideo.videoWidth;
           faceCanvas.height = faceVideo.videoHeight;
           updateDebugStatus('Resolução definida');
@@ -131,12 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
         faceVideo.onerror = () => {
           console.error('Erro no vídeo');
-          reject(new Error('Erro no stream'));
           updateDebugStatus('Erro no stream');
-        } catch (err) {
-          console.error('Erro ao carregar metadados:', err);
-          updateDebugStatus('Erro nos metadados');
-          reject(err);
+          reject(new Error('Erro no stream'));
         };
       });
 
@@ -144,8 +153,9 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('Vídeo iniciado');
       updateDebugStatus('Vídeo iniciado');
       fallbackButton.classList.add('hidden');
-      setupOverlay();
+      await setupOverlay();
       isDetectionActive = true;
+      detectFaces();
     } catch (error) {
       console.error('Erro ao iniciar vídeo:', error);
       let errorMessage = 'Erro ao iniciar o vídeo. Verifique a conexão.';
@@ -221,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
           alignedFrames++;
           if (alignedFrames >= 4 && !isCapturing) {
             oval.classList.add('aligned');
-            const sharpness = computeSharpness();
+            const sharpness = calculateSharpness();
             if (sharpness > 0.05) {
               isCapturing = true;
               faceFeedback.innerHTML = '📸 Capturando...';
@@ -253,30 +263,32 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch (error) {
       console.error('Erro na detecção:', error);
-      showToast('Erro na detecção facial.', 'error', false);
+      showToast('Erro na detecção facial.', 'error', true);
       updateDebugStatus('Erro na detecção');
     }
     requestAnimationFrame(detectFaces);
   }
 
-  function computeSharpness() {
+  function calculateSharpness() {
     try {
       const regionSize = 80;
-      const imageData = tempCtx.getImageData(0, 0, regionSize, regionSize);
+      const centerX = faceVideo.videoWidth / 2 - regionSize / 2;
+      const centerY = faceVideo.videoHeight / 2 - regionSize / 2;
+      const imageData = tempCtx.getImageData(centerX, centerY, regionSize, regionSize);
       const data = imageData.data;
       let laplacianSum = 0;
       let count = 0;
 
       for (let i = 1; i < regionSize - 1; i++) {
-        for (let j = 1; j < regionSize - j; j++) {
+        for (let j = 1; j < regionSize - 1; j++) {
           const idx = (i * regionSize + j) * 4;
           const gray = 0.299 * data[idx] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2];
           const laplacian =
             -4 * gray +
             (data[((i - 1) * regionSize + j) * 4] * 0.299 + data[((i - 1) * regionSize + j) * 4 + 1] * 0.587 + data[((i - 1) * regionSize + j) * 4 + 2] * 0.114) +
-            (data[((i + 1) * regionSize + j) + 4] * 0.299 + data[((i + 1) * regionSize + j) * 4 + 1] * 0.587 + data[((i + 1) * regionSize + j) * 4 + 2] * 0.114) +
+            (data[((i + 1) * regionSize + j) * 4] * 0.299 + data[((i + 1) * regionSize + j) * 4 + 1] * 0.587 + data[((i + 1) * regionSize + j) * 4 + 2] * 0.114) +
             (data[(i * regionSize + (j - 1)) * 4] * 0.299 + data[(i * regionSize + (j - 1)) * 4 + 1] * 0.587 + data[(i * regionSize + (j - 1)) * 4 + 2] * 0.114) +
-            (data[(i * regionSize + (j + 1)) * 4] * 0.299 + data[(i * regionSize + j + 1)) * 4 + 1] * 0.587 + data[(i * regionSize + (j + 1)) * 4 + 2] * 0.114);
+            (data[(i * regionSize + (j + 1)) * 4] * 0.299 + data[(i * regionSize + (j + 1)) * 4 + 1] * 0.587 + data[(i * regionSize + (j + 1)) * 4 + 2] * 0.114);
           laplacianSum += laplacian * laplacian;
           count++;
         }
@@ -287,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return normalizedSharpness;
     } catch (error) {
       console.error('Erro ao calcular nitidez:', error);
-      showToast('Erro na análise de qualidade.', 'error', false);
+      showToast('Erro na análise de qualidade.', 'error', true);
       updateDebugStatus('Erro na nitidez');
       return 0;
     }
@@ -306,7 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
       detectFaces();
       updateDebugStatus('Vídeo não capturável');
       return;
-  }
+    }
 
     faceCanvas.width = faceVideo.videoWidth;
     faceCanvas.height = faceVideo.videoHeight;
@@ -317,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.restore();
 
     try {
-      const targetWidth = Math.min(faceVideo.videoWidth, faceVideo.videoWidth * 3 / 4);
+      const targetWidth = Math.min(faceVideo.videoWidth, faceVideo.videoHeight * 3 / 4);
       const targetHeight = targetWidth * 4 / 3;
       const offsetX = (faceVideo.videoWidth - targetWidth) / 2;
       const offsetY = (faceVideo.videoHeight - targetHeight) / 2;
@@ -333,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
       );
 
       const imageData = cropCanvas.toDataURL('image/jpeg', 0.95);
-      if (!imageData || imageData === 'data:image/jpeg') {
+      if (!imageData || imageData === 'data:,') {
         throw new Error('Imagem inválida');
       }
       confirmationImage.src = imageData;
@@ -410,8 +422,9 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       await startVideo();
       await loadModels();
-    } catch (err) {
-      console.error('Erro na inicialização:', err);
+    } catch (error) {
+      console.error('Erro na inicialização:', error);
+      showToast('Erro ao iniciar. Tente novamente.', 'error', true);
       updateDebugStatus('Erro na inicialização');
     } finally {
       modelLoading.classList.add('hidden');
