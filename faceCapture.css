@@ -6,7 +6,7 @@
   top: 0;
   left: 0;
   z-index: 1;
-  transform: scaleX(-1); /* Inverte o vídeo para corrigir o espelhamento */
+  transform: scaleX(-1) !important; /* Inverte o vídeo para corrigir o espelhamento */
 }
 
 #face-overlay {
@@ -17,16 +17,16 @@
   height: 100vh;
   z-index: 2;
   pointer-events: none;
-  transform: scaleX(-1); /* Inverte o overlay para alinhar com o vídeo */
+  transform: scaleX(-1) !important; /* Inverte o overlay para alinhar com o vídeo */
 }
 
 .face-oval {
   position: absolute;
-  width: 70%; /* Aumentado para facilitar o alinhamento */
+  width: 70%;
   height: 85%;
   top: 7.5%;
   left: 15%;
-  border: 2px solid #ffffff;
+  border: 3px solid #ffffff; /* Aumentado para melhor visibilidade */
   border-radius: 50%;
   box-sizing: border-box;
 }
