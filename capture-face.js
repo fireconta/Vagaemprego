@@ -91,6 +91,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   async function startFaceCapture() {
     try {
+      // Limpar qualquer stream existente
+      stopStream();
+      faceVideo.srcObject = null;
+      faceVideo.classList.add('hidden');
+
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
       let constraints = {
@@ -117,9 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       oval.classList.add('face-oval');
       faceOverlay.appendChild(oval);
 
-      tempCanvas.width = faceVideo.videoWidth;
-      tempCanvas.height = faceVideo.videoHeight;
-
+      // Aguardar até que o vídeo tenha dimensões válidas
       const waitForVideoReady = () => {
         if (faceVideo.readyState >= 2 && faceVideo.videoWidth > 0 && faceVideo.videoHeight > 0) {
           console.log('Vídeo pronto:', { width: faceVideo.videoWidth, height: faceVideo.videoHeight });
@@ -133,10 +136,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       };
 
-      faceVideo.addEventListener('play', waitForVideoReady);
+      // Garantir que o vídeo esteja em reprodução
+      faceVideo.play().then(() => {
+        console.log('Vídeo iniciado');
+        waitForVideoReady();
+      }).catch(error => {
+        console.error('Erro ao iniciar reprodução do vídeo:', error);
+        showToast('Erro ao iniciar o vídeo.', 'error');
+      });
     } catch (error) {
       showToast('Erro ao acessar a câmera: Permita o acesso à câmera.', 'error');
       console.error('Erro na câmera:', error);
+      faceVideo.classList.add('hidden');
     }
   }
 
@@ -167,8 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const screenHeight = document.body.clientHeight;
       const scaleX = screenWidth / videoWidth;
       const scaleY = screenHeight / videoHeight;
-      const ovalWidth = 200; // Fixo, em pixels
-      const ovalHeight = 280; // Fixo, em pixels
+      const ovalWidth = 240; // Atualizado para corresponder ao CSS
+      const ovalHeight = 336; // Atualizado para corresponder ao CSS
       const ovalCenterX = screenWidth / 2;
       const ovalCenterY = screenHeight / 2;
 
@@ -196,7 +207,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (alignedFrames >= 3) {
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 0.06) {
+            if (sharpness > 0.03) {
               console.log('Captura disparada:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
@@ -235,7 +246,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function startCountdown() {
-    let countdown = 2;
+    let countdown = 3;
     countdownElement.textContent = countdown;
     countdownElement.classList.remove('hidden');
     countdownElement.style.opacity = '1';
@@ -335,5 +346,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       stream = null;
       console.log('Stream da câmera encerrado');
     }
+    faceVideo.srcObject = null;
   }
 });
