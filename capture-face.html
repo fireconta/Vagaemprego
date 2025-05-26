@@ -111,8 +111,8 @@
     .face-oval {
       border: 6px solid #ffffff;
       border-radius: 50%;
-      width: 300px;
-      height: 450px;
+      width: 280px;
+      height: 420px;
       position: absolute;
       top: 50%;
       left: 50%;
@@ -278,7 +278,7 @@
     <video id="face-video" autoplay playsinline muted aria-hidden="true"></video>
     <canvas id="face-canvas" class="hidden" aria-hidden="true"></canvas>
     <div id="face-overlay" class="face-overlay"></div>
-    <div id="face-feedback" class="face-feedback">Posicione seu rosto no oval</div>
+    <div id="face-feedback" class="face-feedback">Encaixe o rosto no oval</div>
     <div id="confirmationModal" class="confirmation-modal hidden">
       <img id="confirmationImage" src="" alt="Foto capturada para verificação" tabindex="0">
       <div class="buttons">
@@ -475,7 +475,7 @@
       // Detecta rostos e verifica alinhamento
       async function detectFaces() {
         if (!isDetectionActive || faceVideo.paused || faceVideo.ended || isCapturing) {
-          console.log('Detecção pausada');
+          console.log('Detecção pausada:', { isDetectionActive, isCapturing, paused: faceVideo.paused, ended: faceVideo.ended });
           faceFeedback.innerHTML = '⏸️ Detecção pausada';
           faceFeedback.classList.remove('hidden');
           setTimeout(detectFaces, 100);
@@ -495,7 +495,7 @@
           tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
           tempCtx.restore();
 
-          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
           const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
 
           const oval = faceOverlay.querySelector('.face-oval');
@@ -530,43 +530,54 @@
             const faceBottom = (box.y + box.height) * scaleY;
 
             const isInsideOval = (
-              faceLeft >= ovalLeft + 0.05 * ovalWidth &&
-              faceRight <= ovalRight - 0.05 * ovalWidth &&
-              faceTop >= ovalTop + 0.05 * ovalHeight &&
-              faceBottom <= ovalBottom - 0.05 * ovalHeight
+              faceLeft >= ovalLeft + 0.02 * ovalWidth &&
+              faceRight <= ovalRight - 0.02 * ovalWidth &&
+              faceTop >= ovalTop + 0.02 * ovalHeight &&
+              faceBottom <= ovalBottom - 0.02 * ovalHeight
             );
 
             const faceWidth = box.width * scaleX;
-            const minWidth = 0.85 * ovalWidth;
-            const maxWidth = 0.95 * ovalWidth;
+            const minWidth = 0.8 * ovalWidth;
+            const maxWidth = 1.0 * ovalWidth;
             const isSizeCorrect = faceWidth >= minWidth && faceWidth <= maxWidth;
 
-            console.log('Detecção:', { isInsideOval, faceWidth, minWidth, maxWidth });
+            console.log('Detecção:', {
+              face: { left: faceLeft, right: faceRight, top: faceTop, bottom: faceBottom },
+              oval: { left: ovalLeft, right: ovalRight, top: ovalTop, bottom: ovalBottom },
+              isInsideOval,
+              faceWidth,
+              minWidth,
+              maxWidth,
+              isSizeCorrect
+            });
 
             if (isInsideOval && isSizeCorrect) {
               alignedFrames++;
-              if (alignedFrames >= 3 && !isCapturing) {
+              console.log(`Frame alinhado ${alignedFrames}/2`);
+              if (alignedFrames >= 2 && !isCapturing) {
                 oval.classList.add('aligned');
                 const sharpness = calculateSharpness();
-                if (sharpness > 0.05) {
+                console.log('Nitidez:', sharpness);
+                if (sharpness > 0.03) {
                   isCapturing = true;
-                  faceFeedback.innerHTML = '📸 Capturando...';
+                  faceFeedback.innerHTML = '📸 Capturando agora...';
                   updateDebugStatus('Capturando');
                   captureFace();
                   return;
                 } else {
                   faceFeedback.innerHTML = '💡 Melhore a iluminação';
                   alignedFrames = 0;
+                  console.log('Nitidez insuficiente');
                 }
               } else {
-                faceFeedback.innerHTML = '✅ Perfeito! Aguarde...';
+                faceFeedback.innerHTML = '✅ Encaixe perfeito! Aguarde...';
                 updateDebugStatus('Rosto alinhado');
               }
             } else {
               alignedFrames = 0;
               oval.classList.remove('aligned');
               if (!isInsideOval) {
-                faceFeedback.innerHTML = '↔ Posicione o rosto no oval';
+                faceFeedback.innerHTML = '↔ Encaixe o rosto no oval';
               } else if (faceWidth < minWidth) {
                 faceFeedback.innerHTML = '🔍 Aproxime-se';
               } else {
@@ -616,7 +627,6 @@
           }
           const sharpness = count ? laplacianSum / count : 0;
           const normalizedSharpness = sharpness / 1000;
-          console.log('Nitidez:', normalizedSharpness);
           return normalizedSharpness;
         } catch (error) {
           console.error('Erro ao calcular nitidez:', error);
