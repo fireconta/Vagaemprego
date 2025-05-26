@@ -22,10 +22,10 @@
 
 .face-oval {
   position: absolute;
-  width: 60%;
-  height: 80%;
-  top: 10%;
-  left: 20%;
+  width: 70%; /* Aumentado para facilitar o alinhamento */
+  height: 85%;
+  top: 7.5%;
+  left: 15%;
   border: 2px solid #ffffff;
   border-radius: 50%;
   box-sizing: border-box;
