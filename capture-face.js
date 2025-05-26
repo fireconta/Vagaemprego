@@ -90,11 +90,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      let constraints = { video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } };
+      let constraints = { video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { exact: 'user' } } };
 
       if (videoDevices.length > 0) {
         const frontCamera = videoDevices.find(device => device.label.toLowerCase().includes('front')) || videoDevices[0];
-        constraints.video.deviceId = frontCamera.deviceId;
+        constraints.video.deviceId = { exact: frontCamera.deviceId };
       }
 
       stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -153,30 +153,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         console.log(`Distância ao centro: ${distanceToCenter}, Largura da caixa: ${box.width}`);
 
-        if (distanceToCenter < videoWidth * 0.12 && box.width > videoWidth * 0.18) {
+        if (distanceToCenter < videoWidth * 0.15 && box.width > videoWidth * 0.15) {
           alignedFrames++;
           faceOverlay.firstChild.classList.add('aligned');
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
 
-          if (alignedFrames >= 4) {
+          if (alignedFrames >= 3) {
             tempCtx.drawImage(faceVideo, 0, 0);
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 50 && Date.now() - lastCaptureTime > 5000) {
+            if (sharpness > 40 && Date.now() - lastCaptureTime > 5000) {
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
               detectionActive = false;
               startCountdown();
               return;
             } else {
-              faceFeedback.innerHTML = '🌫️ Melhore a iluminação';
+              faceFeedback.innerHTML = '🌫️ Iluminação fraca, aproxime-se de uma luz';
             }
           }
         } else {
           alignedFrames = 0;
           faceOverlay.firstChild.classList.remove('aligned');
-          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.12 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
+          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.15 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
         }
       } else {
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (detectionActive) {
-      setTimeout(() => requestAnimationFrame(detectFaces), 250);
+      setTimeout(() => requestAnimationFrame(detectFaces), 200);
     }
   }
 
@@ -227,10 +227,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
 
-    ctx.save();
+    // Simplificar espelhamento
+    ctx.translate(faceCanvas.width, 0);
     ctx.scale(-1, 1);
-    ctx.drawImage(faceVideo, -faceCanvas.width, 0, faceCanvas.width, faceCanvas.height);
-    ctx.restore();
+    ctx.drawImage(faceVideo, 0, 0, faceCanvas.width, faceCanvas.height);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // Resetar transformação
 
     try {
       const imageData = faceCanvas.toDataURL('image/jpeg', 0.95);
