@@ -122,6 +122,11 @@
     }
     .face-oval {
       position: absolute;
+      width: 240px;
+      height: 320px;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
       border: 4px dashed #10b981;
       border-radius: 50%;
       animation: pulse 2s infinite;
@@ -132,9 +137,9 @@
       border-style: solid;
     }
     @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-      100% { transform: scale(1); }
+      0% { transform: translate(-50%, -50%) scale(1); }
+      50% { transform: translate(-50%, -50%) scale(1.05); }
+      100% { transform: translate(-50%, -50%) scale(1); }
     }
     .face-instructions {
       position: fixed;
