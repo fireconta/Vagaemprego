@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <script type="text/javascript">
     var gk_isXlsx = false;
@@ -21,19 +22,19 @@
           var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
           var firstSheetName = workbook.SheetNames[0];
           var worksheet = workbook.Sheets[firstSheetName];
-          var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+          var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: true, defval: '' });
           var filteredData = jsonData.filter(row => row.some(filledCell));
           var headerRowIndex = filteredData.findIndex((row, index) =>
-            row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+            filteredData[index + 1] && row.filter(filledCell).length >= filteredData[index + 1].filter(filledCell).length
           );
           if (headerRowIndex === -1 || headerRowIndex > 25) {
             headerRowIndex = 0;
           }
           var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
-          csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+          csv = XLSX.utils.sheet_to_csv(csv);
           return csv;
         } catch (e) {
-          console.error(e);
+          console.error('Erro ao processar XLSX:', e);
           return "";
         }
       }
@@ -51,6 +52,9 @@
       margin: 0;
     }
     .capture-container {
+      background: relative;
+      position: fixed;
+      z-index: 1000;
       background: #ffffff;
       border-radius: 24px;
       box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
@@ -68,14 +72,14 @@
       object-fit: cover;
       z-index: 1000;
       background: rgba(0, 0, 0, 0.9);
-      transform: scaleX(-1); /* Corrige inversão da câmera */
+      transform: scaleX(-1);
     }
     .capture-button {
       position: fixed;
       bottom: 40px;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 1001;
+      z-index: 1002;
       width: 80px;
       height: 80px;
       background: linear-gradient(to bottom, #ef4444, #dc2626);
@@ -86,20 +90,26 @@
       align-items: center;
       justify-content: center;
       transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
     }
     .capture-button.enabled {
       animation: pulse 1.5s infinite;
+      cursor: pointer;
+    }
+    .capture-button.disabled {
+      background: #6b7280;
+      cursor: not-allowed;
     }
     @keyframes pulse {
       0% { transform: translateX(-50%) scale(1); }
       50% { transform: translateX(-50%) scale(1.1); }
       100% { transform: translateX(-50%) scale(1); }
     }
-    .capture-button:hover {
+    .capture-button:hover:not(.disabled) {
       transform: translateX(-50%) scale(1.15);
       box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
     }
-    .capture-button:active {
+    .capture-button:active:not(.disabled) {
       transform: translateX(-50%) scale(0.95);
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
     }
@@ -197,7 +207,7 @@
       box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
     }
     .face-oval.aligned {
-      border-color: #10b981; /* Verde quando alinhado */
+      border-color: #10b981;
       box-shadow: 0 0 16px rgba(16, 185, 129, 0.8);
     }
     .face-instructions {
@@ -211,7 +221,7 @@
       border-radius: 12px;
       font-size: clamp(16px, 2.5vw, 18px);
       font-weight: 600;
-      z-index: 1001;
+      z-index: 1002;
       animation: slideDown 0.5s ease-out;
       word-break: break-word;
       max-width: 90%;
@@ -231,7 +241,7 @@
       border-radius: 12px;
       font-size: clamp(14px, 2vw, 16px);
       font-weight: 500;
-      z-index: 1001;
+      z-index: 1002;
       word-break: break-word;
       max-width: 90%;
     }
@@ -243,7 +253,7 @@
       color: white;
       font-size: 28px;
       font-weight: 700;
-      z-index: 1001;
+      z-index: 1002;
       background: rgba(0, 0, 0, 0.75);
       padding: 12px 24px;
       border-radius: 12px;
@@ -256,13 +266,14 @@
       border-radius: 12px;
       color: white;
       font-weight: 600;
-      z-index: 1002;
+      z-index: 1004;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       animation: slideIn 0.3s ease-out, fadeOut 0.3s ease-in 2.7s;
     }
     .toast-error { background: #ef4444; }
+    .toast-success { background: #10b981; }
     @keyframes slideIn {
-      from { transform: translateX(-100%); opacity: 0; }
+      from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
     }
     @keyframes fadeOut {
@@ -279,7 +290,7 @@
       border-radius: 12px;
       font-size: 18px;
       font-weight: 600;
-      z-index: 1001;
+      z-index: 1003;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -300,7 +311,7 @@
       position: fixed;
       width: 100vw;
       height: 100vh;
-      z-index: 0; /* Fica atrás do vídeo, mas visível */
+      z-index: 999;
     }
   </style>
 </head>
@@ -309,7 +320,7 @@
   <div class="capture-container">
     <h1 class="text-3xl font-bold mb-6 text-gray-900">Captura de Rosto</h1>
     <p class="text-gray-700 mb-4">Posicione seu rosto dentro do oval e clique no botão de captura quando estiver pronto.</p>
-    <video id="face-video" class="hidden" autoplay></video>
+    <video id="face-video" class="hidden" autoplay playsinline muted></video>
     <canvas id="face-canvas" class="hidden"></canvas>
     <div id="face-overlay" class="face-overlay"></div>
     <div id="face-instructions" class="face-instructions hidden">Posicione seu rosto no oval maior</div>
