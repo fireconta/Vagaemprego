@@ -156,6 +156,12 @@
       border-radius: 50%;
       animation: pulse 2s infinite;
       box-shadow: 0 0 16px rgba(16, 185, 129, 0.6);
+      width: 30vw; /* Ajustado para unidades relativas */
+      height: 40vw;
+      max-width: 300px;
+      max-height: 400px;
+      min-width: 200px;
+      min-height: 267px;
     }
     .face-oval.aligned {
       border-color: #10b981;
@@ -253,6 +259,7 @@
     }
     .toast-error { background: #ef4444; }
     .toast-success { background: #10b981; }
+    .toast-warning { background: #f59e0b; }
     .retry-button {
       background: #3b82f6;
       border-radius: 6px;
@@ -327,6 +334,12 @@
       .confirmation-modal .modal-button {
         padding: 10px 20px;
         font-size: 16px;
+      }
+      .face-oval {
+        width: 50vw;
+        height: 66.67vw;
+        max-width: 250px;
+        max-height: 333px;
       }
     }
   </style>
