@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', async () => 
+document.addEventListener('DOMContentLoaded', async () => {
   const faceVideo = document.getElementById('face-video');
   const faceCanvas = document.getElementById('face-canvas');
   const faceOverlay = document.getElementById('face-overlay');
@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', async () =>
   confirmationImage.src = '';
   sessionStorage.removeItem('facePhoto');
 
-  // Initialize particles.js
+  // Inicializar particles.js
   function initParticles() {
     console.log('Tentando inicializar particles.js');
     if (typeof particlesJS === 'undefined') {
@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () =>
     particlesJS('particles-js', {
       particles: {
         number: { value: 100, density: { enable: true, value_area: 800 } },
-        color: { value: '#00ff00' },
+        color: { value: '#10b981' }, // Verde para combinar com o oval
         shape: { type: 'circle' },
         opacity: { value: 0.5, random: true },
         size: { value: 3, random: true },
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () =>
       if (!captureButton) {
         captureButton = document.createElement('button');
         captureButton.classList.add('capture-button', 'disabled');
-        captureButton.textContent = 'Capturar';
+        captureButton.textContent = '';
         document.body.appendChild(captureButton);
       }
 
@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', async () =>
     confirmationModal.classList.add('hidden');
     confirmationImage.src = '';
     faceVideo.classList.remove('hidden');
-    console.log('Repetir foto');
+    console.log('Fechando modal');
     startFaceCapture();
   });
 
