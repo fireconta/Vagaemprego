@@ -159,18 +159,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  function highlightInstruction(instructionId) {
-    document.querySelectorAll('.instructions-panel li').forEach(li => {
-      li.classList.remove('active');
-    });
-    if (instructionId) {
-      const instruction = document.getElementById(instructionId);
-      if (instruction) {
-        instruction.classList.add('active');
-      }
-    }
-  }
-
   async function detectFaces() {
     if (!detectionActive || faceVideo.paused || faceVideo.ended || isCapturing) {
       console.log('Detecção pausada:', {
@@ -219,24 +207,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const distanceToOval = Math.sqrt(
           (noseScreenX - ovalCenterX) ** 2 + (noseScreenY - ovalCenterY) ** 2
         );
-        const maxDistance = Math.min(ovalWidth, ovalHeight) * 0.3;
+        const maxDistance = Math.min(ovalWidth, ovalHeight) * 0.35;
 
-        if (distanceToOval < maxDistance && box.width > videoWidth * 0.03) {
+        if (distanceToOval < maxDistance && box.width > videoWidth * 0.05) {
           alignedFrames++;
-          faceFeedback.innerHTML = '✅ Rosto alinhado!';
+          faceFeedback.innerHTML = '✅ Rosto alinhado! Aguarde...';
           faceFeedback.classList.remove('hidden');
-          highlightInstruction('instruction-alignment');
-
-          if (alignedFrames >= 3 && !countdownInterval) {
+          if (alignedFrames >= 4 && !countdownInterval) {
             oval.classList.add('aligned');
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
             if (sharpness > 0.05) {
-              faceFeedback.innerHTML = '📸 Preparando captura...';
+              faceFeedback.innerHTML = '📸 Capturando...';
               startCountdown();
               return;
             } else {
               faceFeedback.innerHTML = '💡 Melhore a iluminação';
-              highlightInstruction('instruction-lighting');
               alignedFrames = 0;
             }
           }
@@ -244,17 +229,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           alignedFrames = 0;
           clearCountdown();
           oval.classList.remove('aligned');
-          faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔️ Alinhe o rosto no oval' : '🔍 Aproxime o rosto';
+          faceFeedback.innerHTML = distanceToOval >= maxDistance ? '↔ Centralize o rosto no oval' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
-          highlightInstruction('instruction-alignment');
         }
       } else {
         alignedFrames = 0;
         clearCountdown();
         oval.classList.remove('aligned');
-        faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
+        faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto deve ser detectado';
         faceFeedback.classList.remove('hidden');
-        highlightInstruction(detections.length === 0 ? 'instruction-alignment' : 'instruction-no-accessories');
       }
     } catch (error) {
       console.error('Erro na detecção facial:', error);
