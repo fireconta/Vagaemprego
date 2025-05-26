@@ -19,51 +19,46 @@ document.addEventListener('DOMContentLoaded', async () => {
   let alignedFrames = 0;
   let detectionActive = false;
 
-  // Carregar modelos
+  // Carregar modelos via CDN com timeout
   async function loadModels() {
-    const paths = [
-      '/Vagaemprego/weights',
-      './weights',
-      '/weights',
-      './assets/weights',
-      'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'
-    ];
-    for (const path of paths) {
-      try {
-        console.log(`Carregando modelos de: ${path}`);
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri(path),
-          faceapi.nets.faceLandmark68Net.loadFromUri(path),
-          faceapi.nets.faceRecognitionNet.loadFromUri(path)
-        ]);
-        console.log(`Modelos carregados: ${path}`);
-        showToast('Modelos carregados!', 'success');
-        return true;
-      } catch (error) {
-        console.error(`Erro em ${path}:`, error);
-      }
+    const path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights';
+    try {
+      console.log(`Carregando modelos de: ${path}`);
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout no carregamento')), 8000));
+      await Promise.race([
+        Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(path),
+          faceapi.nets.faceLandmark68Net.loadFromUri(path)
+        ]),
+        timeout
+      ]);
+      console.log('Modelos carregados com sucesso');
+      showToast('Modelos carregados!', 'success');
+      return true;
+    } catch (error) {
+      console.error('Erro ao carregar modelos:', error);
+      throw new Error(error.message);
     }
-    throw new Error('Falha ao carregar modelos.');
   }
 
   modelLoading.classList.remove('hidden');
   try {
     await loadModels();
     modelLoading.classList.add('hidden');
-    setTimeout(startFaceCapture, 1000); // Atraso para garantir inicialização
+    setTimeout(startFaceCapture, 2000);
   } catch (error) {
     modelLoading.classList.add('hidden');
-    showToast('Erro ao carregar modelos. Verifique a pasta weights ou conexão.', 'error');
-    console.error('Erro ao carregar modelos:', error);
+    showToast(`Erro ao carregar modelos: ${error.message}. Verifique sua conexão.`, 'error');
+    console.error('Falha na inicialização:', error);
     return;
   }
 
   // Calcular nitidez
   function calculateSharpness(canvas, ctx, box) {
-    const regionSize = Math.min(box.width, box.height) * 0.6;
-    const x = Math.max(0, box.x + box.width / 2 - regionSize / 2);
-    const y = Math.max(0, box.y + box.height / 2 - regionSize / 2);
     try {
+      const regionSize = Math.min(box.width, box.height) * 0.6;
+      const x = Math.max(0, box.x + box.width / 2 - regionSize / 2);
+      const y = Math.max(0, box.y + box.height / 2 - regionSize / 2);
       const imageData = ctx.getImageData(x, y, regionSize, regionSize);
       const data = imageData.data;
       let laplacianSum = 0;
@@ -98,19 +93,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      let constraints = { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } };
+      let constraints = { video: { width: { ideal: 240 }, height: { ideal: 180 } } };
 
       if (videoDevices.length > 0) {
         const frontCamera = videoDevices.find(device => device.label.toLowerCase().includes('front')) || videoDevices[0];
-        constraints.video.deviceId = { exact: frontCamera.deviceId };
+        constraints.video.deviceId = frontCamera.deviceId ? { exact: frontCamera.deviceId } : undefined;
       }
 
+      console.log('Inicializando câmera com constraints:', constraints);
       stream = await navigator.mediaDevices.getUserMedia(constraints);
       faceVideo.srcObject = stream;
       faceVideo.classList.remove('hidden');
       faceInstructions.classList.remove('hidden');
 
-      // Criar oval imediatamente
       faceOverlay.innerHTML = '';
       const oval = document.createElement('div');
       oval.classList.add('face-oval');
@@ -119,49 +114,47 @@ document.addEventListener('DOMContentLoaded', async () => {
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
 
-      faceVideo.addEventListener('play', () => {
-        if (faceVideo.readyState < 2 || faceVideo.videoWidth === 0 || faceVideo.videoHeight === 0) {
-          console.error('Vídeo não está pronto ou dimensões inválidas');
-          showToast('Erro na câmera. Tente novamente.', 'error');
-          stopStream();
-          return;
+      const waitForVideoReady = () => {
+        if (faceVideo.readyState >= 2 && faceVideo.videoWidth > 0 && faceVideo.videoHeight > 0) {
+          console.log('Vídeo pronto:', { width: faceVideo.videoWidth, height: faceVideo.videoHeight });
+          tempCanvas.width = faceVideo.videoWidth;
+          tempCanvas.height = faceVideo.videoHeight;
+          detectionActive = true;
+          detectFaces();
+        } else {
+          console.log('Aguardando vídeo...', { readyState: faceVideo.readyState, width: faceVideo.videoWidth, height: faceVideo.videoHeight });
+          setTimeout(waitForVideoReady, 100);
         }
+      };
 
-        tempCanvas.width = faceVideo.videoWidth;
-        tempCanvas.height = faceVideo.videoHeight;
-        detectionActive = true;
-        detectFaces();
-      });
+      faceVideo.addEventListener('play', waitForVideoReady);
     } catch (error) {
-      showToast('Erro ao acessar a câmera. Verifique permissões.', 'error');
+      showToast('Erro ao acessar a câmera: Permita o acesso à câmera.', 'error');
       console.error('Erro na câmera:', error);
     }
   }
 
-  // Detecção de rosto com requestAnimationFrame
+  // Detecção de faces
   async function detectFaces() {
     if (!detectionActive || faceVideo.paused || faceVideo.ended || isCapturing) {
+      console.log('Detecção interrompida:', { detectionActive, isCapturing, paused: faceVideo.paused, ended: faceVideo.ended });
       return;
     }
 
     try {
-      if (!faceapi.nets.ssdMobilenetv1.isLoaded || !faceapi.nets.faceLandmark68Net.isLoaded || !faceapi.nets.faceRecognitionNet.isLoaded) {
+      if (!faceapi.nets.tinyFaceDetector.isLoaded || !faceapi.nets.faceLandmark68Net.isLoaded) {
         throw new Error('Modelos não carregados');
       }
 
-      const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 });
-      const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks().withFaceDescriptors();
+      console.log('Iniciando detecção de face');
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 64, scoreThreshold: 0.1 });
+      const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
       console.log(`Detecções: ${detections.length}`);
 
       if (detections.length === 1) {
         const { box } = detections[0].detection;
         const landmarks = detections[0].landmarks;
-        const descriptor = detections[0].descriptor;
         const nose = landmarks.getNose()[0];
-
-        if (!descriptor || descriptor.length === 0) {
-          throw new Error('Descritor de rosto inválido');
-        }
 
         const videoWidth = faceVideo.videoWidth;
         const videoHeight = faceVideo.videoHeight;
@@ -171,17 +164,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         console.log(`Distância ao centro: ${distanceToCenter}, Largura da caixa: ${box.width}`);
 
-        if (distanceToCenter < videoWidth * 0.25 && box.width > videoWidth * 0.08) {
+        if (distanceToCenter < videoWidth * 0.35 && box.width > videoWidth * 0.05) {
           alignedFrames++;
           faceOverlay.firstChild.classList.add('aligned');
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
+          console.log('Rosto alinhado:', { alignedFrames });
 
           if (alignedFrames >= 1) {
             tempCtx.drawImage(faceVideo, 0, 0);
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 15 && Date.now() - lastCaptureTime > 2000) {
+            if (sharpness > 2 && Date.now() - lastCaptureTime > 1000) {
+              console.log('Captura disparada:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
               detectionActive = false;
@@ -189,23 +184,26 @@ document.addEventListener('DOMContentLoaded', async () => {
               return;
             } else {
               faceFeedback.innerHTML = '🌫️ Iluminação fraca, aproxime-se de uma luz';
+              console.log('Nitidez insuficiente ou captura recente:', { sharpness, timeSinceLastCapture: Date.now() - lastCaptureTime });
             }
           }
         } else {
           alignedFrames = 0;
           faceOverlay.firstChild.classList.remove('aligned');
-          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.25 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
+          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.35 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
+          console.log('Rosto desalinhado:', { distanceToCenter, boxWidth: box.width });
         }
       } else {
         alignedFrames = 0;
         faceOverlay.firstChild.classList.remove('aligned');
         faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
         faceFeedback.classList.remove('hidden');
+        console.log('Detecção inválida:', { detectionCount: detections.length });
       }
     } catch (error) {
       console.error('Erro na detecção:', error);
-      showToast('Erro na detecção de rosto. Tente novamente.', 'error');
+      showToast(`Erro na detecção: ${error.message}`, 'error');
       faceFeedback.innerHTML = '⚠️ Erro na detecção';
       faceFeedback.classList.remove('hidden');
     }
@@ -230,13 +228,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => countdownElement.classList.add('hidden'), 300);
         captureFace();
       }
-    }, 300);
+    }, 200);
   }
 
   // Capturar foto
   function captureFace() {
     if (faceVideo.readyState < 2) {
-      showToast('Vídeo não está pronto. Tente novamente.', 'error');
+      showToast('Vídeo não está pronto.', 'error');
+      console.error('Vídeo não pronto para captura:', { readyState: faceVideo.readyState });
       isCapturing = false;
       detectionActive = true;
       detectFaces();
@@ -247,18 +246,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
 
-    ctx.drawImage(faceVideo, 0, 0, faceCanvas.width, faceCanvas.height);
+    ctx.drawImage(faceVideo, 0, 0);
 
     try {
-      const imageData = faceCanvas.toDataURL('image/jpeg', 0.9);
+      const imageData = faceCanvas.toDataURL('image/jpeg', 0.8);
       if (!imageData || imageData === 'data:,') {
-        throw new Error('Imagem vazia gerada');
+        throw new Error('Imagem inválida');
       }
       confirmationImage.src = imageData;
       confirmationModal.classList.remove('hidden');
+      console.log('Foto capturada com sucesso');
     } catch (error) {
-      console.error('Erro ao gerar imagem:', error);
-      showToast('Falha ao capturar a imagem. Tente novamente.', 'error');
+      console.error('Erro ao capturar imagem:', error);
+      showToast('Falha ao capturar imagem.', 'error');
       isCapturing = false;
       detectionActive = true;
       detectFaces();
@@ -278,26 +278,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     confirmationModal.classList.add('hidden');
     confirmationImage.src = '';
     faceVideo.classList.remove('hidden');
+    console.log('Repetir foto');
     startFaceCapture();
   });
 
   confirmButton.addEventListener('click', () => {
     sessionStorage.setItem('facePhoto', confirmationImage.src);
     confirmationModal.classList.add('hidden');
-    const urlParams = new URLSearchParams(window.location.search);
-    const returnPage = urlParams.get('return') || 'index.html';
-    window.location.href = returnPage;
+    console.log('Foto confirmada, redirecionando para index.html');
+    window.location.href = 'index.html';
   });
 
   closeModalButton.addEventListener('click', () => {
     confirmationModal.classList.add('hidden');
     confirmationImage.src = '';
     faceVideo.classList.remove('hidden');
+    console.log('Fechando modal');
     startFaceCapture();
   });
 
   confirmationImage.addEventListener('click', () => {
     confirmationImage.classList.toggle('zoomed');
+    console.log('Zoom da imagem alterado');
   });
 
   // Funções auxiliares
@@ -306,12 +308,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast.className = `toast toast-${type}`;
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 3000);
+    console.log(`Toast exibido: ${message} (${type})`);
   }
 
   function stopStream() {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
       stream = null;
+      console.log('Stream da câmera encerrado');
     }
   }
 });
