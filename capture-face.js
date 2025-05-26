@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   let lastCaptureTime = 0;
   let alignedFrames = 0;
   let detectionActive = false;
+  let tempCanvas = document.createElement('canvas');
+  let tempCtx = tempCanvas.getContext('2d');
 
   // Carregar modelos via CDN com timeout
   async function loadModels() {
@@ -117,8 +119,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       oval.classList.add('face-oval');
       faceOverlay.appendChild(oval);
 
-      const tempCanvas = document.createElement('canvas');
-      const tempCtx = tempCanvas.getContext('2d');
+      tempCanvas.width = faceVideo.videoWidth;
+      tempCanvas.height = faceVideo.videoHeight;
 
       const waitForVideoReady = () => {
         if (faceVideo.readyState >= 2 && faceVideo.videoWidth > 0 && faceVideo.videoHeight > 0) {
