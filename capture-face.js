@@ -21,7 +21,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Carregar modelos
   async function loadModels() {
-    const paths = ['./weights', '/weights', './assets/weights', '/assets/weights'];
+    const paths = [
+      '/Vagaemprego/weights',
+      './weights',
+      '/weights',
+      './assets/weights',
+      'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights'
+    ];
     for (const path of paths) {
       try {
         console.log(`Carregando modelos de: ${path}`);
@@ -43,10 +49,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await loadModels();
     modelLoading.classList.add('hidden');
-    startFaceCapture();
+    setTimeout(startFaceCapture, 500); // Atraso para garantir inicialização
   } catch (error) {
     modelLoading.classList.add('hidden');
-    showToast('Erro ao carregar modelos. Verifique a pasta weights.', 'error');
+    showToast('Erro ao carregar modelos. Verifique a pasta weights ou conexão.', 'error');
     console.error('Erro ao carregar modelos:', error);
     return;
   }
@@ -91,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      let constraints = { video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: { exact: 'user' } } };
+      let constraints = { video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' } };
 
       if (videoDevices.length > 0) {
         const frontCamera = videoDevices.find(device => device.label.toLowerCase().includes('front')) || videoDevices[0];
@@ -113,8 +119,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const tempCtx = tempCanvas.getContext('2d');
 
       faceVideo.addEventListener('play', () => {
-        if (faceVideo.videoWidth === 0 || faceVideo.videoHeight === 0) {
-          console.error('Dimensões do vídeo inválidas');
+        if (faceVideo.readyState < 2 || faceVideo.videoWidth === 0 || faceVideo.videoHeight === 0) {
+          console.error('Vídeo não está pronto ou dimensões inválidas');
           showToast('Erro na câmera. Tente novamente.', 'error');
           stopStream();
           return;
@@ -142,7 +148,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('Modelos não carregados');
       }
 
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 });
+      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.5 });
       const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
       console.log(`Detecções: ${detections.length}`);
 
@@ -159,17 +165,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         console.log(`Distância ao centro: ${distanceToCenter}, Largura da caixa: ${box.width}`);
 
-        if (distanceToCenter < videoWidth * 0.15 && box.width > videoWidth * 0.15) {
+        if (distanceToCenter < videoWidth * 0.2 && box.width > videoWidth * 0.1) {
           alignedFrames++;
           faceOverlay.firstChild.classList.add('aligned');
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
 
-          if (alignedFrames >= 3) {
+          if (alignedFrames >= 2) {
             tempCtx.drawImage(faceVideo, 0, 0);
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 40 && Date.now() - lastCaptureTime > 5000) {
+            if (sharpness > 20 && Date.now() - lastCaptureTime > 3000) {
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
               detectionActive = false;
@@ -182,7 +188,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           alignedFrames = 0;
           faceOverlay.firstChild.classList.remove('aligned');
-          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.15 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
+          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.2 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
         }
       } else {
@@ -199,7 +205,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (detectionActive) {
-      setTimeout(() => requestAnimationFrame(detectFaces), 200);
+      setTimeout(() => requestAnimationFrame(detectFaces), 100);
     }
   }
 
@@ -218,7 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => countdownElement.classList.add('hidden'), 300);
         captureFace();
       }
-    }, 1000);
+    }, 500);
   }
 
   // Capturar foto
@@ -235,11 +241,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     faceCanvas.height = faceVideo.videoHeight;
     const ctx = faceCanvas.getContext('2d');
 
-    // Espelhamento desativado
     ctx.drawImage(faceVideo, 0, 0, faceCanvas.width, faceCanvas.height);
 
     try {
-      const imageData = faceCanvas.toDataURL('image/jpeg', 0.95);
+      const imageData = faceCanvas.toDataURL('image/jpeg', 0.9);
       if (!imageData || imageData === 'data:,') {
         throw new Error('Imagem vazia gerada');
       }
@@ -294,7 +299,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast.textContent = message;
     toast.className = `toast toast-${type}`;
     toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 2500);
+    setTimeout(() => toast.classList.add('hidden'), 3000);
   }
 
   function stopStream() {
