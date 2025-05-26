@@ -32,8 +32,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       try {
         console.log(`Carregando modelos de: ${path}`);
         await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(path),
+          faceapi.nets.ssdMobilenetv1.loadFromUri(path),
           faceapi.nets.faceLandmark68Net.loadFromUri(path),
+          faceapi.nets.faceRecognitionNet.loadFromUri(path)
         ]);
         console.log(`Modelos carregados: ${path}`);
         showToast('Modelos carregados!', 'success');
@@ -49,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await loadModels();
     modelLoading.classList.add('hidden');
-    setTimeout(startFaceCapture, 500); // Atraso para garantir inicialização
+    setTimeout(startFaceCapture, 1000); // Atraso para garantir inicialização
   } catch (error) {
     modelLoading.classList.add('hidden');
     showToast('Erro ao carregar modelos. Verifique a pasta weights ou conexão.', 'error');
@@ -144,18 +145,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
-      if (!faceapi.nets.tinyFaceDetector.isLoaded || !faceapi.nets.faceLandmark68Net.isLoaded) {
+      if (!faceapi.nets.ssdMobilenetv1.isLoaded || !faceapi.nets.faceLandmark68Net.isLoaded || !faceapi.nets.faceRecognitionNet.isLoaded) {
         throw new Error('Modelos não carregados');
       }
 
-      const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 128, scoreThreshold: 0.5 });
-      const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks();
+      const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 });
+      const detections = await faceapi.detectAllFaces(faceVideo, options).withFaceLandmarks().withFaceDescriptors();
       console.log(`Detecções: ${detections.length}`);
 
       if (detections.length === 1) {
         const { box } = detections[0].detection;
         const landmarks = detections[0].landmarks;
+        const descriptor = detections[0].descriptor;
         const nose = landmarks.getNose()[0];
+
+        if (!descriptor || descriptor.length === 0) {
+          throw new Error('Descritor de rosto inválido');
+        }
 
         const videoWidth = faceVideo.videoWidth;
         const videoHeight = faceVideo.videoHeight;
@@ -165,17 +171,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         console.log(`Distância ao centro: ${distanceToCenter}, Largura da caixa: ${box.width}`);
 
-        if (distanceToCenter < videoWidth * 0.2 && box.width > videoWidth * 0.1) {
+        if (distanceToCenter < videoWidth * 0.25 && box.width > videoWidth * 0.08) {
           alignedFrames++;
           faceOverlay.firstChild.classList.add('aligned');
           faceFeedback.innerHTML = '✅ Rosto alinhado!';
           faceFeedback.classList.remove('hidden');
 
-          if (alignedFrames >= 2) {
+          if (alignedFrames >= 1) {
             tempCtx.drawImage(faceVideo, 0, 0);
             const sharpness = calculateSharpness(tempCanvas, tempCtx, box);
 
-            if (sharpness > 20 && Date.now() - lastCaptureTime > 3000) {
+            if (sharpness > 15 && Date.now() - lastCaptureTime > 2000) {
               faceFeedback.innerHTML = '📸 Capturando...';
               isCapturing = true;
               detectionActive = false;
@@ -188,7 +194,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
           alignedFrames = 0;
           faceOverlay.firstChild.classList.remove('aligned');
-          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.2 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
+          faceFeedback.innerHTML = distanceToCenter >= videoWidth * 0.25 ? '↔️ Ajuste a posição' : '🔍 Aproxime o rosto';
           faceFeedback.classList.remove('hidden');
         }
       } else {
@@ -205,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (detectionActive) {
-      setTimeout(() => requestAnimationFrame(detectFaces), 100);
+      setTimeout(() => requestAnimationFrame(detectFaces), 80);
     }
   }
 
@@ -224,7 +230,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => countdownElement.classList.add('hidden'), 300);
         captureFace();
       }
-    }, 500);
+    }, 300);
   }
 
   // Capturar foto
