@@ -123,6 +123,9 @@
       transform: scale(1.03);
       border-color: #3b82f6;
     }
+    .captured-image.session-loaded {
+      border-color: #10b981;
+    }
     @keyframes slideIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
@@ -360,12 +363,51 @@
         </svg>
         Como Tirar as Fotos
       </button>
-      <div id="helpSection" class="mt-4 p-6 rounded-lg help-text collapsed" role="region" aria-label="Instruções">
-        <ul class="list-disc pl-6 text-base text-gray-700 space-y-3">
-          <li><strong>Foto do Rosto</strong>: Clique em "Iniciar Captura" para ser redirecionado à página de captura. Posicione seu rosto dentro do oval maior na tela, em um ambiente bem iluminado, sem óculos ou acessórios que cubram o rosto. Aguarde a contagem regressiva e confirme a foto capturada.</li>
-          <li><strong>Foto da Documentação</strong>: Coloque o documento (RG ou CNH) sobre uma superfície plana, em um local bem iluminado, e capture a imagem de forma que todo o documento seja legível. Você também pode fazer upload de uma foto existente (JPEG ou PNG).</li>
-          <li><strong>Dicas Gerais</strong>: Use a câmera frontal (rosto) ou traseira (documento). Certifique-se de que a imagem esteja nítida e sem sombras. Clique no botão redondo para capturar.</li>
-        </ul>
+      <div id="helpSection" class="mt-4 p-6 rounded-lg help-text collapsed" role="region" aria-label="Instruções para Captura de Fotos">
+        <div class="text-base text-gray-700 space-y-4">
+          <div>
+            <h3 class="font-semibold text-gray-900">Foto do Rosto</h3>
+            <p>Siga estes passos para capturar uma foto clara do seu rosto:</p>
+            <ol class="list-decimal pl-6 space-y-2">
+              <li>Clique em "Iniciar Captura" para abrir a página de captura facial.</li>
+              <li>Posicione seu rosto dentro do oval exibido na tela, ocupando a maior parte dele.</li>
+              <li>Certifique-se de estar em um ambiente bem iluminado, com luz natural ou artificial suave.</li>
+              <li>Remova óculos, chapéus ou acessórios que cubram o rosto.</li>
+              <li>Aguarde a contagem regressiva e mantenha o rosto centralizado.</li>
+              <li>Revise a foto capturada e clique em "Confirmar" se estiver nítida.</li>
+            </ol>
+            <ul class="list-disc pl-6 mt-2 space-y-1">
+              <li><strong>Dica</strong>: Evite fundos complexos ou sombras no rosto.</li>
+              <li><strong>Erro comum</strong>: Se aparecer "Erro na detecção de rosto", ajuste a iluminação ou aproxime-se da câmera.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-900">Foto do Documento (Frente e Verso)</h3>
+            <p>Capture a frente e o verso do seu RG ou CNH de forma legível:</p>
+            <ol class="list-decimal pl-6 space-y-2">
+              <li>Clique em "Capturar Frente" ou "Capturar Verso" na seção de documentação.</li>
+              <li>Coloque o documento sobre uma superfície plana e lisa, como uma mesa.</li>
+              <li>Enquadre o documento para que ele ocupe toda a tela, sem cortes nas bordas.</li>
+              <li>Use um ambiente bem iluminado, evitando reflexos ou sombras no documento.</li>
+              <li>Clique no botão redondo para capturar a imagem.</li>
+              <li>Verifique se o texto está legível e confirme a captura.</li>
+            </ol>
+            <ul class="list-disc pl-6 mt-2 space-y-1">
+              <li><strong>Dica</strong>: Use a câmera traseira do celular para maior nitidez.</li>
+              <li><strong>Erro comum</strong>: Evite reflexos de flash; use luz natural ou desligue o flash.</li>
+              <li>Você também pode fazer upload de fotos existentes em formato JPEG ou PNG.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-900">Dicas Gerais</h3>
+            <ul class="list-disc pl-6 space-y-1">
+              <li>Mantenha a câmera estável durante a captura.</li>
+              <li>Verifique a conexão com a internet para carregar a página de captura facial.</li>
+              <li>Se usar um celular, permita o acesso à câmera nas permissões do navegador.</li>
+              <li>Certifique-se de que todas as fotos estejam nítidas antes de enviar o formulário.</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -408,20 +450,34 @@
           <div>
             <label for="uploadFacePhoto" class="block text-sm font-medium text-gray-700">Foto com Confirmação do Rosto</label>
             <div class="file-upload-container mt-2">
-              <button type="button" id="captureFacePhoto" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 focus:ring-4 focus:ring-blue-300">Iniciar Captura</button>
+              <button type="button" id="captureFacePhoto" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 focus:ring-4 focus:ring-blue-300" onclick="window.location.href='capture-face.html'">Iniciar Captura</button>
               <input type="file" id="uploadFacePhoto" name="uploadFacePhoto" accept="image/jpeg,image/png" class="px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" aria-label="Upload de imagem">
             </div>
-            <img id="facePhotoPreview" class="captured-image hidden" alt="Pré-visualização da foto do rosto">
+            <p id="facePhotoMessage" class="text-sm text-gray-600 mt-2 hidden">Foto capturada com sucesso!</p>
+            <img id="facePhotoPreview" class="captured-image hidden" alt="Pré-visualização da foto do rosto" aria-label="Foto do rosto capturada">
           </div>
           <div>
-            <label for="documentPhoto" class="block text-sm font-medium text-gray-700">Foto da Documentação (RG ou CNH)</label>
-            <div class="file-upload-container mt-2">
-              <button type="button" id="captureDocumentPhoto" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 focus:ring-4 focus:ring-blue-300">Capturar Documento</button>
-              <input type="file" id="documentPhoto" name="documentPhoto" accept="image/jpeg,image/png" class="px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" aria-label="Upload de imagem do documento">
+            <label class="block text-sm font-medium text-gray-700">Foto da Documentação (RG ou CNH)</label>
+            <div class="space-y-4 mt-2">
+              <div>
+                <label for="documentFrontPhoto" class="block text-sm font-medium text-gray-600">Frente do Documento</label>
+                <div class="file-upload-container mt-1">
+                  <button type="button" id="captureDocumentFront" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 focus:ring-4 focus:ring-blue-300">Capturar Frente</button>
+                  <input type="file" id="documentFrontPhoto" name="documentFrontPhoto" accept="image/jpeg,image/png" required class="px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" aria-label="Upload da frente do documento" aria-required="true">
+                </div>
+                <img id="documentFrontPreview" class="captured-image hidden" alt="Pré-visualização da frente do documento" aria-label="Frente do documento capturada">
+              </div>
+              <div>
+                <label for="documentBackPhoto" class="block text-sm font-medium text-gray-600">Verso do Documento</label>
+                <div class="file-upload-container mt-1">
+                  <button type="button" id="captureDocumentBack" class="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 focus:ring-4 focus:ring-blue-300">Capturar Verso</button>
+                  <input type="file" id="documentBackPhoto" name="documentBackPhoto" accept="image/jpeg,image/png" required class="px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 focus:ring-blue-500 focus:border-blue-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" aria-label="Upload do verso do documento" aria-required="true">
+                </div>
+                <img id="documentBackPreview" class="captured-image hidden" alt="Pré-visualização do verso do documento" aria-label="Verso do documento capturado">
+              </div>
             </div>
             <video id="document-video" class="hidden" autoplay></video>
             <canvas id="document-canvas" class="hidden"></canvas>
-            <img id="documentPhotoPreview" class="captured-image hidden" alt="Pré-visualização da foto do documento">
           </div>
         </div>
       </div>
@@ -435,9 +491,26 @@
   <div id="toast" class="toast hidden"></div>
   <div id="fullscreenPreview" class="fullscreen-preview hidden">
     <img id="previewImage" src="" alt="Pré-visualização da imagem capturada">
-    <button class="close">&times;</button>
+    <button class="close">×</button>
   </div>
 
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const facePhotoPreview = document.getElementById('facePhotoPreview');
+      const facePhotoMessage = document.getElementById('facePhotoMessage');
+      const photoData = sessionStorage.getItem('facePhoto');
+
+      if (photoData && photoData !== 'data:,') {
+        facePhotoPreview.src = photoData;
+        facePhotoPreview.classList.remove('hidden');
+        facePhotoPreview.classList.add('session-loaded');
+        facePhotoMessage.classList.remove('hidden');
+        console.log('Foto do rosto carregada do sessionStorage');
+      } else {
+        console.log('Nenhuma foto válida encontrada no sessionStorage');
+      }
+    });
+  </script>
   <script src="index.js"></script>
 </body>
 </html>
