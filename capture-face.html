@@ -8,6 +8,7 @@
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
   <style>
+    /* Estilos permanecem inalterados */
     body {
       background: linear-gradient(to bottom, #0f172a, #1e3a8a);
       font-family: 'Inter', 'Roboto', sans-serif;
@@ -367,7 +368,7 @@
       let failedDetections = 0;
       let lastDetectionTime = 0;
       let lastDetections = null;
-      const detectionInterval = 100; // Aumentado para 100ms para melhor performance
+      const detectionInterval = 100;
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
       let cachedDimensions = null;
@@ -425,29 +426,47 @@
 
       // Carrega modelos
       async function loadModels(attempt = 1, maxAttempts = 3) {
-        const path = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/';
+        const githubPath = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
+        const fallbackPath = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/';
         try {
-          updateDebugStatus(`Carregando modelos (${attempt}/${maxAttempts})`);
-          console.log('Carregando modelos de:', path);
+          updateDebugStatus(`Carregando modelos do GitHub (${attempt}/${maxAttempts})`);
+          console.log('Carregando modelos de:', githubPath);
           await Promise.race([
             Promise.all([
-              faceapi.nets.ssdMobilenetv1.loadFromUri(path),
-              faceapi.nets.faceLandmark68Net.loadFromUri(path)
+              faceapi.nets.ssdMobilenetv1.loadFromUri(githubPath),
+              faceapi.nets.faceLandmark68Net.loadFromUri(githubPath)
             ]),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout nos modelos')), 20000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout ao carregar modelos do GitHub')), 20000))
           ]);
           modelsLoaded = true;
-          showToast('Modelos carregados!', 'success', false);
-          updateDebugStatus('Modelos carregados');
+          showToast('Modelos carregados do GitHub!', 'success', false);
+          updateDebugStatus('Modelos carregados do GitHub');
           return true;
         } catch (error) {
-          console.error(`Erro ao carregar modelos (tentativa ${attempt}):`, error);
-          updateDebugStatus(`Erro nos modelos: ${error.message}`);
+          console.error(`Erro ao carregar modelos do GitHub (tentativa ${attempt}):`, error);
+          updateDebugStatus(`Erro nos modelos (GitHub): ${error.message}`);
+          if (error.message.includes('Failed to fetch') || error.message.includes('network') || error.message.includes('CORS')) {
+            console.warn('Falha ao carregar do GitHub, tentando CDN');
+            try {
+              updateDebugStatus(`Carregando modelos do CDN (${attempt}/${maxAttempts})`);
+              await Promise.all([
+                faceapi.nets.ssdMobilenetv1.loadFromUri(fallbackPath),
+                faceapi.nets.faceLandmark68Net.loadFromUri(fallbackPath)
+              ]);
+              modelsLoaded = true;
+              showToast('Modelos carregados do CDN!', 'success', false);
+              updateDebugStatus('Modelos carregados do CDN');
+              return true;
+            } catch (fallbackError) {
+              console.error('Erro ao carregar do CDN:', fallbackError);
+              updateDebugStatus(`Erro no CDN: ${fallbackError.message}`);
+            }
+          }
           if (attempt < maxAttempts) {
             await new Promise(resolve => setTimeout(resolve, 2000));
             return loadModels(attempt + 1, maxAttempts);
           }
-          showToast('Falha ao carregar detecção facial.', 'error', true);
+          showToast('Falha ao carregar detecção facial. Verifique a conexão ou tente novamente.', 'error', true);
           return false;
         }
       }
@@ -569,7 +588,7 @@
             faceVideo.onerror = () => {
               reject(new Error('Erro no stream'));
             };
-            setTimeout(() => reject(new Error('Timeout de metadados')), 5000); // Reduzido para 5 segundos
+            setTimeout(() => reject(new Error('Timeout de metadados')), 5000);
           });
 
           const played = await tryPlayVideo();
