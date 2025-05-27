@@ -553,15 +553,28 @@
           countdown.textContent = i;
           await new Promise(resolve => setTimeout(resolve, 1000));
 
-          // Verifica se o rosto ainda está alinhado
+          // Verifica iluminação
           tempCtx.save();
           tempCtx.scale(-1, 1);
           tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
           tempCtx.restore();
+          const sharpness = calculateSharpness();
+          const oval = faceOverlay.querySelector('.face-oval');
+          if (sharpness <= 0.03) {
+            countdown.style.display = 'none';
+            isCountingDown = false;
+            isDetectionActive = true;
+            alignedFrames = 0;
+            faceFeedback.innerHTML = '💡 Vá para um local mais iluminado';
+            console.log('Contagem interrompida: iluminação insuficiente');
+            updateDebugStatus('Contagem interrompida: iluminação insuficiente');
+            if (oval) oval.classList.remove('aligned');
+            return;
+          }
 
+          // Verifica se o rosto ainda está alinhado
           const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
           const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
-          const oval = faceOverlay.querySelector('.face-oval');
           if (!oval || detections.length !== 1) {
             countdown.style.display = 'none';
             isCountingDown = false;
@@ -570,7 +583,7 @@
             faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
             console.log('Contagem interrompida: rosto inválido');
             updateDebugStatus('Contagem interrompida: rosto inválido');
-            oval.classList.remove('aligned');
+            if (oval) oval.classList.remove('aligned');
             return;
           }
 
@@ -615,8 +628,10 @@
             faceFeedback.innerHTML = !isInsideOval ? '↔️ Encaixe o rosto no centro' : (faceWidth < minWidth ? '🔍 Aproxime o rosto' : '🔍 Afaste o rosto');
             console.log('Contagem interrompida: rosto desalinhado');
             updateDebugStatus('Contagem interrompida: rosto desalinhado');
-            oval.classList.remove('aligned');
+            if (oval) oval.classList.remove('aligned');
             return;
+          } else {
+            oval.classList.add('aligned');
           }
         }
 
@@ -710,9 +725,9 @@
 
             if (isInsideOval && isSizeCorrect) {
               alignedFrames++;
+              oval.classList.add('aligned');
               console.log(`Frame alinhado ${alignedFrames}/2`);
               if (alignedFrames >= 2) {
-                oval.classList.add('aligned');
                 const sharpness = calculateSharpness();
                 console.log('Nitidez:', sharpness);
                 if (sharpness > 0.03) {
@@ -721,7 +736,7 @@
                   startCountdown();
                   return;
                 } else {
-                  faceFeedback.innerHTML = '💡 Melhore a iluminação';
+                  faceFeedback.innerHTML = '💡 Vá para um local mais iluminado';
                   alignedFrames = 0;
                   console.log('Nitidez insuficiente');
                   oval.classList.remove('aligned');
@@ -729,7 +744,6 @@
               } else {
                 faceFeedback.innerHTML = '✅ Encaixe perfeito! Aguarde...';
                 updateDebugStatus('Rosto alinhado');
-                oval.classList.add('aligned');
               }
             } else {
               alignedFrames = 0;
@@ -835,7 +849,7 @@
           }
           confirmationImage.src = imageData;
           confirmationModal.classList.remove('hidden');
-          console amateurs showing a captured face for verification;
+          console.log('Showing a captured face for verification');
           updateDebugStatus('Foto capturada');
         } catch (error) {
           console.error('Erro ao capturar:', error);
