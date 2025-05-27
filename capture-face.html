@@ -359,6 +359,7 @@
       let isCountingDown = false;
       let failedDetections = 0;
       let lastDetectionTime = 0;
+      let lastDetections = null;
       const detectionInterval = 50;
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
@@ -369,7 +370,7 @@
       confirmationImage.src = '';
       sessionStorage.removeItem('facePhoto');
       faceVideo.style.display = 'none';
-      startButton.style.display = 'none'; // Esconde botão inicialmente
+      startButton.style.display = 'none';
 
       // Funções auxiliares
       function updateDebugStatus(message) {
@@ -407,11 +408,12 @@
       // Carrega modelos
       async function loadModels(attempt = 1, maxAttempts = 3) {
         const path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
+        const fallbackPath = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/weights/';
         try {
           updateDebugStatus(`Carregando modelos (${attempt}/${maxAttempts})`);
           await Promise.race([
             Promise.all([
-              faceapi.nets.tinyFaceDetector.loadFromUri(path),
+              faceapi.nets.ssdMobilenetv1.loadFromUri(path),
               faceapi.nets.faceLandmark68Net.loadFromUri(path)
             ]),
             new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout nos modelos')), 15000))
@@ -424,8 +426,21 @@
           console.error(`Erro ao carregar modelos (tentativa ${attempt}):`, error);
           updateDebugStatus(`Erro nos modelos: ${error.message}`);
           if (attempt < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            return loadModels(attempt + 1, maxAttempts);
+            try {
+              updateDebugStatus(`Tentando fallback CDN (${attempt}/${maxAttempts})`);
+              await Promise.all([
+                faceapi.nets.ssdMobilenetv1.loadFromUri(fallbackPath),
+                faceapi.nets.faceLandmark68Net.loadFromUri(fallbackPath)
+              ]);
+              modelsLoaded = true;
+              showToast('Modelos carregados via CDN!', 'success', false);
+              updateDebugStatus('Modelos carregados via CDN');
+              return true;
+            } catch (fallbackError) {
+              console.error('Erro no fallback CDN:', fallbackError);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              return loadModels(attempt + 1, maxAttempts);
+            }
           }
           showToast('Falha ao carregar detecção facial.', 'error', true);
           return false;
@@ -580,16 +595,26 @@
             await new Promise(resolve => setTimeout(resolve, 2000));
             return startVideo(attempt + 1, maxAttempts);
           }
-          startButton.style.display = 'block'; // Exibe botão em caso de falha
+          startButton.style.display = 'block';
           stopStream();
           return false;
         }
       }
 
+      // Calcula ângulo do rosto
+      function calculateFaceAngle(landmarks) {
+        const leftEye = landmarks.positions[36];
+        const rightEye = landmarks.positions[45];
+        const deltaY = rightEye.y - leftEye.y;
+        const deltaX = rightEye.x - leftEye.x;
+        const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+        return Math.abs(angle);
+      }
+
       // Contagem regressiva
       async function startCountdown() {
         if (isCountingDown || isCapturing) return;
-        if (faceVideo.readyState < 2) {
+        if (faceVideo.readyState < 2 || !faceVideo.videoWidth || !faceVideo.videoHeight) {
           showToast('Câmera não está pronta.', 'error', true);
           updateDebugStatus('Erro: Vídeo não pronto para contagem');
           isDetectionActive = true;
@@ -611,8 +636,8 @@
               throw new Error('Vídeo não está pronto durante a contagem');
             }
 
-            const width = faceVideo.readyState >= 2 ? faceVideo.videoWidth : 640;
-            const height = faceVideo.readyState >= 2 ? faceVideo.videoHeight : 480;
+            const width = faceVideo.videoWidth;
+            const height = faceVideo.videoHeight;
             tempCanvas.width = width;
             tempCanvas.height = height;
             tempCtx.save();
@@ -638,20 +663,23 @@
             }
 
             const isMobile = window.innerWidth <= 640;
-            const options = new faceapi.TinyFaceDetectorOptions({ inputSize: isMobile ? 160 : 320, scoreThreshold: 0.4 });
-            let detections;
-            try {
-              detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
-            } catch (error) {
-              console.error('Erro na detecção durante contagem:', error);
-              countdown.style.display = 'none';
-              isCountingDown = false;
-              isDetectionActive = true;
-              alignedFrames = 0;
-              faceFeedback.innerHTML = '⚠️ Erro na detecção';
-              if (oval) oval.classList.remove('aligned', 'misaligned').add('no-face');
-              updateDebugStatus('Erro na detecção durante contagem');
-              return;
+            const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 });
+            let detections = lastDetections;
+            if (!detections || performance.now() - lastDetectionTime > 200) {
+              try {
+                detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
+                lastDetections = detections;
+              } catch (error) {
+                console.error('Erro na detecção durante contagem:', error);
+                countdown.style.display = 'none';
+                isCountingDown = false;
+                isDetectionActive = true;
+                alignedFrames = 0;
+                faceFeedback.innerHTML = '⚠️ Erro na detecção';
+                if (oval) oval.classList.remove('aligned', 'misaligned').add('no-face');
+                updateDebugStatus('Erro na detecção durante contagem');
+                return;
+              }
             }
 
             if (!oval || detections.length !== 1) {
@@ -664,7 +692,18 @@
               return;
             }
 
-            const { box } = detections[0].detection;
+            const { box, landmarks } = detections[0];
+            const angle = calculateFaceAngle(landmarks);
+            if (angle > 15) {
+              countdown.style.display = 'none';
+              isCountingDown = false;
+              isDetectionActive = true;
+              alignedFrames = 0;
+              faceFeedback.innerHTML = '🙂 Mantenha o rosto reto';
+              if (oval) oval.classList.remove('aligned', 'no-face').add('misaligned');
+              return;
+            }
+
             updateCachedDimensions();
             const { videoWidth, screenWidth, screenHeight, ovalLeft, ovalRight, ovalTop, ovalBottom, ovalWidth, ovalHeight } = cachedDimensions;
             const scaleX = screenWidth / videoWidth;
@@ -760,8 +799,12 @@
           tempCtx.restore();
 
           const isMobile = window.innerWidth <= 640;
-          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: isMobile ? 160 : 320, scoreThreshold: 0.4 });
-          const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
+          const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 });
+          let detections = lastDetections;
+          if (!detections || now - lastDetectionTime > 200) {
+            detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
+            lastDetections = detections;
+          }
 
           const oval = faceOverlay.querySelector('.face-oval');
           if (!oval) {
@@ -777,7 +820,17 @@
           const scaleY = screenHeight / videoHeight;
 
           if (detections.length === 1) {
-            const { box } = detections[0].detection;
+            const { box, landmarks } = detections[0];
+            const angle = calculateFaceAngle(landmarks);
+            if (angle > 15) {
+              alignedFrames = 0;
+              oval.classList.remove('aligned', 'no-face').add('misaligned');
+              faceFeedback.innerHTML = '🙂 Mantenha o rosto reto';
+              failedDetections = 0;
+              setTimeout(detectFaces, detectionInterval);
+              return;
+            }
+
             const faceLeft = screenWidth - (box.x + box.width) * scaleX;
             const faceRight = screenWidth - box.x * scaleX;
             const faceTop = box.y * scaleY;
@@ -795,7 +848,7 @@
             const maxWidth = 1.1 * ovalWidth;
             const isSizeCorrect = faceWidth >= minWidth && faceWidth <= maxWidth;
 
-            console.log('Detecção:', { isInsideOval, faceWidth, isSizeCorrect });
+            console.log('Detecção:', { isInsideOval, faceWidth, isSizeCorrect, angle });
 
             if (isInsideOval && isSizeCorrect) {
               alignedFrames++;
@@ -998,7 +1051,7 @@
         } catch (error) {
           console.error('Erro na inicialização:', error);
           showToast(`Erro ao iniciar: ${error.message}`, 'error', true);
-          startButton.style.display = 'block'; // Exibe botão se falhar
+          startButton.style.display = 'block';
           updateDebugStatus('Erro na inicialização');
         } finally {
           modelLoading.classList.add('hidden');
