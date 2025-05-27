@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Captura de Rosto</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
@@ -11,13 +11,13 @@
     body {
       background: linear-gradient(to bottom, #0f172a, #1e3a8a);
       font-family: 'Inter', 'Roboto', sans-serif;
-      min-height: 600px;
+      min-height: 100vh;
       margin: 0;
       padding: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      overflow: auto;
+      overflow: hidden;
     }
     .capture-container {
       position: relative;
@@ -30,7 +30,8 @@
     .fullscreen-video {
       position: fixed;
       top: 0;
-      left: 100vw;
+      left: 0;
+      width: 100vw;
       height: 100vh;
       object-fit: cover;
       z-index: 1000;
@@ -40,10 +41,11 @@
     .confirmation-modal {
       position: fixed;
       top: 0;
-      left: 100vw;
-      width: rgba(0, 0, 0, 0.9);
-      backdrop-filter: blur(12px);
-      height: 100%;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -57,10 +59,10 @@
       aspect-ratio: 3 / 4;
       object-fit: cover;
       border-radius: 16px;
-      border: 3px solid #ffffff;
-      box-shadow: 0 8px 15px rgba(0,0,0,0.5);
+      border: 2px solid #ffffff;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
       cursor: zoom-in;
-      transition: transform 0s ease;
+      transition: transform 0.3s ease;
     }
     .confirmation-modal img:focus,
     .confirmation-modal img.zoomed {
@@ -69,23 +71,22 @@
     .confirmation-modal .buttons {
       display: flex;
       justify-content: center;
-      gap: 1.5rem;
+      gap: 12px;
       width: 100%;
       max-width: 600px;
       margin-top: 20px;
     }
     .modal-button {
       background: #3b82f6;
-      border-radius: 10px;
-      padding: 14px 0;
+      border-radius: 8px;
+      padding: 12px 0;
       font-size: 16px;
       font-weight: 600;
       color: white;
       border: none;
       cursor: pointer;
-      transition: background 0.2s ease, transform 0.2s ease;
-      width: 45%;
-      max-width: 200px;
+      transition: background 0.2s, transform 0.2s;
+      width: 160px;
     }
     .modal-button:hover {
       background: #2563eb;
@@ -100,21 +101,22 @@
     .face-overlay {
       position: fixed;
       top: 0;
-      left: 100vw;
-      width: 100%;
+      left: 0;
+      width: 100vw;
       height: 100vh;
       z-index: 1001;
       pointer-events: none;
     }
     .face-oval {
-      border: 6px solid #333;
+      border: 2px solid #ffffff;
       border-radius: 50%;
       width: 400px;
       height: 600px;
       position: absolute;
       top: 50%;
-      left: translate(-50%, -50%);
-      box-shadow: transform0 0 15px rgba(255,255,255,0.3);
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 20px rgba(255, 255, 0.2);
       background: transparent;
       display: block;
       transition: border-color 0.3s ease;
@@ -127,41 +129,41 @@
     }
     .face-oval.aligned {
       border-color: #10b981;
-      animation: pulse 1s ease-in-out infinite;
+      animation: pulse 1s infinite ease-in-out;
     }
     @keyframes pulse {
-      0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 15px rgba(16,185,129,0.3); }
-      50% { transform: translate(-50%, -50%) scale(1.015); box-shadow: 0 0 25px rgba(16,185,129,0.5); }
-      100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 15px rgba(16,185,129,0.3); }
+      0% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+      50% { transform: translate(-50%, -50%) scale(1.015); box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+      100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
     }
     .face-feedback {
       position: fixed;
-      bottom: 100px;
+      bottom: 80px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0,0,0,0.8);
+      background: rgba(0, 0, 0, 0.7);
       color: white;
-      padding: 14px 20px;
-      border-radius: 10px;
-      font-size: 16px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 18px;
       font-weight: 600;
       z-index: 1002;
       max-width: 90%;
       text-align: center;
       animation: fadeIn 0.4s ease-in-out;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
     .countdown {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.85);
+      background: rgba(0, 0, 0, 0.85);
       color: white;
       font-size: 80px;
       font-weight: 700;
       padding: 20px 40px;
-      border-radius: 15px;
+      border-radius: 8px;
       z-index: 1003;
       display: none;
       animation: countdownFade 1s ease-in-out;
@@ -186,7 +188,7 @@
       font-weight: 600;
       font-size: 14px;
       z-index: 1006;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -203,7 +205,7 @@
       font-weight: 600;
       color: white;
       cursor: pointer;
-      transition: background 0.2s ease;
+      transition: background 0.2s;
     }
     .retry-button:hover {
       background: #2563eb;
@@ -213,7 +215,7 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.8);
+      background: rgba(0, 0, 0, 0.8);
       color: white;
       padding: 12px 20px;
       border-radius: 8px;
@@ -240,7 +242,7 @@
       position: fixed;
       top: 8px;
       left: 8px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0, 0, 0, 0.6);
       color: white;
       padding: 6px 10px;
       border-radius: 4px;
@@ -269,7 +271,7 @@
       .face-feedback {
         bottom: 80px;
         font-size: 14px;
-        padding: 12px 20px;
+        padding: 10px 20px;
       }
       .confirmation-modal img {
         max-width: 90%;
@@ -353,7 +355,7 @@
       let isCountingDown = false;
       let failedDetections = 0;
       let lastDetectionTime = 0;
-      const detectionInterval = 100; // ms
+      const detectionInterval = 50; // ms
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
       let cachedDimensions = null;
@@ -377,7 +379,7 @@
         toast.innerHTML = message + (showRetry ? ' <button class="retry-button">Tentar novamente</button>' : '');
         toast.className = `toast toast-${type}`;
         toast.classList.remove('hidden');
-        setTimeout(() => toast.classList.add('hidden'), type === 'error' ? 10000 : 4000);
+        setTimeout(() => toast.classList.add('hidden'), type === 'error' ? 12000 : 4000);
         if (showRetry) {
           const retryButton = toast.querySelector('.retry-button');
           retryButton.removeEventListener('click', initialize);
@@ -387,7 +389,10 @@
 
       function stopStream() {
         if (stream) {
-          stream.getTracks().forEach(track => track.stop());
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.log('Track de câmera parado:', track.id);
+          });
           stream = null;
           faceVideo.srcObject = null;
           faceVideo.pause();
@@ -401,12 +406,13 @@
         const path = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
         try {
           updateDebugStatus(`Carregando modelos (${attempt}/${maxAttempts})`);
+          console.log(`Tentativa ${attempt} de carregar modelos`);
           await Promise.race([
             Promise.all([
               faceapi.nets.tinyFaceDetector.loadFromUri(path),
               faceapi.nets.faceLandmark68Net.loadFromUri(path)
             ]),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout nos modelos')), 10000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout nos modelos')), 15000))
           ]);
           modelsLoaded = true;
           showToast('Pronto para capturar!', 'success', false);
@@ -414,12 +420,12 @@
           return true;
         } catch (error) {
           console.error(`Erro ao carregar modelos (tentativa ${attempt}):`, error);
-          updateDebugStatus(`Erro nos modelos (${attempt}/${maxAttempts})`);
+          updateDebugStatus(`Erro nos modelos: ${error.message}`);
           if (attempt < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 2000));
             return loadModels(attempt + 1, maxAttempts);
           }
-          showToast('Erro ao carregar detecção facial.', 'warning', true);
+          showToast('Falha ao carregar detecção facial. Verifique a conexão.', 'error', true);
           updateDebugStatus('Falha nos modelos');
           return false;
         }
@@ -443,8 +449,8 @@
         if (!oval) return;
         const ovalRect = oval.getBoundingClientRect();
         cachedDimensions = {
-          videoWidth: faceVideo.videoWidth,
-          videoHeight: faceVideo.videoHeight,
+          videoWidth: faceVideo.videoWidth || 1280,
+          videoHeight: faceVideo.videoHeight || 720,
           screenWidth: window.innerWidth,
           screenHeight: window.innerHeight,
           ovalLeft: ovalRect.left,
@@ -461,10 +467,11 @@
       async function checkCameraPermission() {
         try {
           const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+          console.log('Permissão da câmera:', permissionStatus.state);
           if (permissionStatus.state === 'denied') {
-            return { granted: false, message: 'Permissão para câmera negada. Habilite nas configurações.' };
+            return { granted: false, message: 'Permissão para câmera negada. Habilite nas configurações do navegador.' };
           }
-          return { granted: permissionStatus.state === 'granted' };
+          return { granted: permissionStatus.state === 'granted' || permissionStatus.state === 'prompt' };
         } catch (error) {
           console.error('Erro ao verificar permissão:', error);
           return { granted: false, message: 'Erro ao verificar permissão da câmera.' };
@@ -472,15 +479,16 @@
       }
 
       // Inicia vídeo
-      async function startVideo(attempt = 1, maxAttempts = 3) {
+      async function startVideo(attempt = 1, maxAttempts = 5) {
         try {
           updateDebugStatus('Iniciando vídeo...');
+          console.log(`Tentativa ${attempt} de iniciar vídeo`);
           stopStream();
           faceVideo.classList.add('fullscreen-video');
           faceVideo.style.display = 'block';
 
           if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            throw new Error('API de mídia não suportada.');
+            throw new Error('API de mídia não suportada pelo navegador.');
           }
 
           const permission = await checkCameraPermission();
@@ -491,19 +499,25 @@
           const constraints = {
             video: {
               facingMode: 'user',
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
+              width: { min: 640, ideal: 1280 },
+              height: { min: 360, ideal: 720 },
               frameRate: { ideal: 30 }
             }
           };
 
+          console.log('Constraints aplicados:', constraints);
           stream = await navigator.mediaDevices.getUserMedia(constraints);
           if (!stream.active) throw new Error('Stream inválido');
           faceVideo.srcObject = stream;
           updateDebugStatus('Stream ativo');
+          console.log('Stream iniciado:', stream.id);
 
           await new Promise((resolve, reject) => {
             faceVideo.onloadedmetadata = () => {
+              console.log('Metadados do vídeo:', {
+                width: faceVideo.videoWidth,
+                height: faceVideo.videoHeight
+              });
               tempCanvas.width = faceVideo.videoWidth;
               tempCanvas.height = faceVideo.videoHeight;
               faceCanvas.width = faceVideo.videoWidth;
@@ -512,12 +526,14 @@
               resolve();
             };
             faceVideo.onerror = () => {
+              console.error('Erro no vídeo');
               updateDebugStatus('Erro no stream');
               reject(new Error('Erro no stream'));
             };
           });
 
           await faceVideo.play();
+          console.log('Vídeo iniciado');
           updateDebugStatus('Vídeo iniciado');
           fallbackButton.classList.add('hidden');
           setupOverlay();
@@ -527,18 +543,22 @@
           console.error(`Erro ao iniciar vídeo (tentativa ${attempt}):`, error);
           let errorMessage = 'Não foi possível acessar a câmera.';
           if (error.name === 'NotAllowedError' || error.message.includes('Permissão')) {
-            errorMessage = 'Permissão para câmera negada. Habilite nas configurações.';
+            errorMessage = 'Permissão para câmera negada. Habilite nas configurações do navegador.';
           } else if (error.name === 'NotFoundError') {
-            errorMessage = 'Nenhuma câmera encontrada.';
+            errorMessage = 'Nenhuma câmera encontrada. Verifique o dispositivo.';
           } else if (error.name === 'NotReadableError') {
-            errorMessage = 'Câmera em uso por outro aplicativo.';
+            errorMessage = 'Câmera em uso por outro aplicativo. Feche outros apps.';
           } else if (error.name === 'OverconstrainedError') {
-            errorMessage = 'Resolução não suportada.';
+            errorMessage = 'Resolução não suportada. Tente outro dispositivo ou câmera.';
+          } else {
+            errorMessage = `Erro ao acessar a câmera: ${error.message}`;
           }
           updateDebugStatus(`Erro no vídeo: ${errorMessage}`);
           showToast(errorMessage, 'error', true);
-          if (attempt < maxAttempts && error.name === 'NotReadableError') {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+          faceFeedback.innerHTML = '📷 Verifique a câmera';
+          if (attempt < maxAttempts && (error.name === 'NotReadableError' || error.name === 'OverconstrainedError')) {
+            console.log(`Tentando novamente em 2s (tentativa ${attempt + 1})`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
             return startVideo(attempt + 1, maxAttempts);
           }
           fallbackButton.classList.remove('hidden');
@@ -570,7 +590,7 @@
           const sharpness = calculateSharpness();
           const oval = faceOverlay.querySelector('.face-oval');
           if (sharpness <= 0.03) {
-            if (failedDetections < 3) {
+            if (failedDetections < 5) {
               failedDetections++;
               countdown.style.display = 'none';
               isCountingDown = false;
@@ -590,8 +610,25 @@
           }
 
           // Verifica alinhamento
-          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
-          const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
+          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
+          let detections;
+          try {
+            detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
+          } catch (error) {
+            console.error('Erro na detecção durante contagem:', error);
+            countdown.style.display = 'none';
+            isCountingDown = false;
+            isDetectionActive = true;
+            alignedFrames = 0;
+            faceFeedback.innerHTML = '⚠️ Erro na detecção';
+            updateDebugStatus('Erro na detecção durante contagem');
+            if (oval) {
+              oval.classList.remove('aligned', 'misaligned');
+              oval.classList.add('no-face');
+            }
+            return;
+          }
+
           if (!oval || detections.length !== 1) {
             countdown.style.display = 'none';
             isCountingDown = false;
@@ -687,7 +724,7 @@
           tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
           tempCtx.restore();
 
-          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
           const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
 
           const oval = faceOverlay.querySelector('.face-oval');
@@ -747,7 +784,7 @@
                   startCountdown();
                   return;
                 } else {
-                  if (failedDetections < 3) {
+                  if (failedDetections < 5) {
                     failedDetections++;
                     faceFeedback.innerHTML = '💡 Vá para um local mais iluminado';
                     alignedFrames = 0;
@@ -789,14 +826,14 @@
         } catch (error) {
           console.error('Erro na detecção:', error);
           failedDetections++;
-          if (failedDetections >= 3) {
-            showToast('Erro persistente na detecção facial.', 'error', true);
+          faceFeedback.innerHTML = '⚠️ Erro na detecção';
+          updateDebugStatus(`Erro na detecção: ${error.message}`);
+          if (failedDetections >= 5) {
+            showToast(`Erro persistente na detecção: ${error.message}`, 'error', true);
             updateDebugStatus('Erro persistente na detecção');
             fallbackButton.classList.remove('hidden');
             return;
           }
-          faceFeedback.innerHTML = '⚠️ Erro na detecção';
-          updateDebugStatus('Erro na detecção');
         }
         setTimeout(detectFaces, detectionInterval);
       }
@@ -877,7 +914,7 @@
           }
           confirmationImage.src = imageData;
           confirmationModal.classList.remove('hidden');
-          console.log('Showing a captured face for verification');
+          console.log('Foto capturada para verificação');
           updateDebugStatus('Foto capturada');
         } catch (error) {
           console.error('Erro ao capturar:', error);
@@ -940,6 +977,7 @@
           faceVideo.play().catch(err => {
             console.error('Erro ao play:', err);
             updateDebugStatus('Erro ao play');
+            showToast('Erro ao iniciar vídeo.', 'error', true);
             fallbackButton.classList.remove('hidden');
           });
         }
@@ -958,7 +996,7 @@
           faceFeedback.classList.remove('hidden');
         } catch (error) {
           console.error('Erro na inicialização:', error);
-          showToast('Erro ao iniciar. Tente novamente.', 'error', true);
+          showToast(`Erro ao iniciar: ${error.message}`, 'error', true);
           updateDebugStatus('Erro na inicialização');
           fallbackButton.classList.remove('hidden');
         } finally {
