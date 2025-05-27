@@ -147,6 +147,26 @@
       animation: fadeIn 0.4s ease-in-out;
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     }
+    .countdown {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.85);
+      color: white;
+      font-size: 80px;
+      font-weight: 700;
+      padding: 20px 40px;
+      border-radius: 15px;
+      z-index: 1003;
+      display: none;
+      animation: countdownFade 1s ease-in-out;
+    }
+    @keyframes countdownFade {
+      0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+      50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+      100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateX(-50%) translateY(15px); }
       to { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -265,6 +285,10 @@
         width: 300px;
         height: 450px;
       }
+      .countdown {
+        font-size: 60px;
+        padding: 15px 30px;
+      }
       .toast {
         font-size: 13px;
         padding: 10px 20px;
@@ -279,6 +303,7 @@
     <canvas id="face-canvas" class="hidden" aria-hidden="true"></canvas>
     <div id="face-overlay" class="face-overlay"></div>
     <div id="face-feedback" class="face-feedback">Encaixe o rosto no oval</div>
+    <div id="countdown" class="countdown" aria-live="polite"></div>
     <div id="confirmationModal" class="confirmation-modal hidden">
       <img id="confirmationImage" src="" alt="Foto capturada para verificação" tabindex="0">
       <div class="buttons">
@@ -304,6 +329,7 @@
       const faceCanvas = document.getElementById('face-canvas');
       const faceOverlay = document.getElementById('face-overlay');
       const faceFeedback = document.getElementById('face-feedback');
+      const countdown = document.getElementById('countdown');
       const confirmationModal = document.getElementById('confirmationModal');
       const confirmationImage = document.getElementById('confirmationImage');
       const repeatButton = document.getElementById('repeatButton');
@@ -319,6 +345,7 @@
       let alignedFrames = 0;
       let isDetectionActive = false;
       let modelsLoaded = false;
+      let isCountingDown = false;
       const tempCanvas = document.createElement('canvas');
       const tempCtx = tempCanvas.getContext('2d');
 
@@ -473,11 +500,96 @@
         }
       }
 
+      // Inicia a contagem regressiva
+      async function startCountdown() {
+        if (isCountingDown || isCapturing) return;
+        isCountingDown = true;
+        isDetectionActive = false;
+        faceFeedback.innerHTML = 'Mantenha o rosto no centro';
+        countdown.style.display = 'block';
+        console.log('Iniciando contagem regressiva');
+
+        for (let i = 3; i >= 1; i--) {
+          countdown.textContent = i;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Verifica se o rosto ainda está alinhado
+          tempCtx.save();
+          tempCtx.scale(-1, 1);
+          tempCtx.drawImage(faceVideo, -faceVideo.videoWidth, 0, faceVideo.videoWidth, faceVideo.videoHeight);
+          tempCtx.restore();
+
+          const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 });
+          const detections = await faceapi.detectAllFaces(tempCanvas, options).withFaceLandmarks();
+          const oval = faceOverlay.querySelector('.face-oval');
+          if (!oval || detections.length !== 1) {
+            countdown.style.display = 'none';
+            isCountingDown = false;
+            isDetectionActive = true;
+            faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
+            alignedFrames = 0;
+            console.log('Contagem interrompida: rosto inválido');
+            return;
+          }
+
+          const { box } = detections[0].detection;
+          const videoWidth = faceVideo.videoWidth;
+          const videoHeight = faceVideo.videoHeight;
+          const screenWidth = window.innerWidth;
+          const screenHeight = window.innerHeight;
+          const scaleX = screenWidth / videoWidth;
+          const scaleY = screenHeight / videoHeight;
+          const ovalRect = oval.getBoundingClientRect();
+
+          const ovalLeft = ovalRect.left;
+          const ovalRight = ovalRect.right;
+          const ovalTop = ovalRect.top;
+          const ovalBottom = ovalRect.bottom;
+          const ovalWidth = ovalRect.width;
+          const ovalHeight = ovalRect.height;
+
+          const faceLeft = screenWidth - (box.x + box.width) * scaleX;
+          const faceRight = screenWidth - box.x * scaleX;
+          const faceTop = box.y * scaleY;
+          const faceBottom = (box.y + box.height) * scaleY;
+
+          const isInsideOval = (
+            faceLeft >= ovalLeft + 0.01 * ovalWidth &&
+            faceRight <= ovalRight - 0.01 * ovalWidth &&
+            faceTop >= ovalTop + 0.01 * ovalHeight &&
+            faceBottom <= ovalBottom - 0.01 * ovalHeight
+          );
+
+          const faceWidth = box.width * scaleX;
+          const minWidth = 0.75 * ovalWidth;
+          const maxWidth = 1.1 * ovalWidth;
+          const isSizeCorrect = faceWidth >= minWidth && faceWidth <= maxWidth;
+
+          if (!isInsideOval || !isSizeCorrect) {
+            countdown.style.display = 'none';
+            isCountingDown = false;
+            isDetectionActive = true;
+            faceFeedback.innerHTML = !isInsideOval ? '↔️ Encaixe o rosto no centro' : (faceWidth < minWidth ? '🔍 Aproxime o rosto' : '🔍 Afaste o rosto');
+            alignedFrames = 0;
+            console.log('Contagem interrompida: rosto desalinhado');
+            return;
+          }
+        }
+
+        countdown.style.display = 'none';
+        isCountingDown = false;
+        isCapturing = true;
+        faceFeedback.innerHTML = '📸 Capturando agora...';
+        updateDebugStatus('Capturando');
+        console.log('Contagem concluída, capturando');
+        captureFace();
+      }
+
       // Detecta rostos e verifica alinhamento
       async function detectFaces() {
-        if (!isDetectionActive || faceVideo.paused || faceVideo.ended || isCapturing) {
-          console.log('Detecção pausada:', { isDetectionActive, isCapturing, paused: faceVideo.paused, ended: faceVideo.ended });
-          faceFeedback.innerHTML = '⏸️ Detecção pausada';
+        if (!isDetectionActive || faceVideo.paused || faceVideo.ended || isCapturing || isCountingDown) {
+          console.log('Detecção pausada:', { isDetectionActive, isCapturing, isCountingDown, paused: faceVideo.paused, ended: faceVideo.ended });
+          if (!isCountingDown) faceFeedback.innerHTML = '⏸️ Detecção pausada';
           faceFeedback.classList.remove('hidden');
           setTimeout(detectFaces, 100);
           return;
@@ -555,15 +667,14 @@
             if (isInsideOval && isSizeCorrect) {
               alignedFrames++;
               console.log(`Frame alinhado ${alignedFrames}/2`);
-              if (alignedFrames >= 2 && !isCapturing) {
+              if (alignedFrames >= 2) {
                 oval.classList.add('aligned');
                 const sharpness = calculateSharpness();
                 console.log('Nitidez:', sharpness);
                 if (sharpness > 0.03) {
-                  isCapturing = true;
-                  faceFeedback.innerHTML = '📸 Capturando agora...';
-                  updateDebugStatus('Capturando');
-                  captureFace();
+                  faceFeedback.innerHTML = '✅ Encaixe perfeito! Preparando...';
+                  updateDebugStatus('Rosto alinhado, iniciando contagem');
+                  startCountdown();
                   return;
                 } else {
                   faceFeedback.innerHTML = '💡 Melhore a iluminação';
@@ -703,6 +814,8 @@
         isCapturing = false;
         alignedFrames = 0;
         isDetectionActive = true;
+        isCountingDown = false;
+        countdown.style.display = 'none';
         stopStream();
         faceFeedback.classList.remove('hidden');
         faceFeedback.innerHTML = 'Encaixe o rosto no oval';
@@ -728,7 +841,7 @@
 
       fallbackButton.addEventListener('click', () => {
         fallbackButton.classList.add('hidden');
-        initialize();
+        initialize hydrophobia();
         console.log('Fallback clicado');
         updateDebugStatus('Fallback acionado');
       });
@@ -745,7 +858,7 @@
 
       // Inicializa a aplicação
       async function initialize() {
-        modelLoading.classList.remove('hidden');
+        modelLoading.classList.remove('countdown');
         updateDebugStatus('Inicializando...');
         try {
           await startVideo();
