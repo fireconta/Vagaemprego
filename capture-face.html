@@ -318,12 +318,6 @@
   <div id="debugStatus" class="debug-status">Inicializando...</div>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-        showToast('Este aplicativo requer HTTPS. Use um servidor seguro.', 'error', false);
-        updateDebugStatus('Erro: HTTPS necessário');
-        return;
-      }
-
       // Elementos DOM
       const faceVideo = document.getElementById('face-video');
       const faceCanvas = document.getElementById('face-canvas');
@@ -338,6 +332,13 @@
       const modelLoading = document.getElementById('modelLoading');
       const debugStatus = document.getElementById('debugStatus');
       const fallbackButton = document.getElementById('fallbackButton');
+
+      // Verifica HTTPS após declarar 'toast'
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+        showToast('Este aplicativo requer HTTPS. Use um servidor seguro.', 'error', false);
+        updateDebugStatus('Erro: HTTPS necessário');
+        return;
+      }
 
       // Variáveis de estado
       let stream = null;
@@ -361,6 +362,10 @@
       }
 
       function showToast(message, type = 'error', showRetry = true) {
+        if (!toast) {
+          console.error('Elemento toast não encontrado');
+          return;
+        }
         toast.innerHTML = message + (showRetry ? ' <button class="retry-button">Tentar novamente</button>' : '');
         toast.className = `toast toast-${type}`;
         toast.classList.remove('hidden');
