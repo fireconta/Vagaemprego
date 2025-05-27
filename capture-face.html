@@ -312,13 +312,13 @@
       </div>
     </div>
     <div id="toast" class="toast hidden" aria-live="polite"></div>
-    <button id="fallbackButton" class="fallback-button">Iniciar Câmera</button>
+    <button id="fallbackButton" class="fallback-button">Tentar Novamente</button>
   </div>
   <div id="modelLoading" class="model-loading hidden" aria-live="polite">Carregando...</div>
   <div id="debugStatus" class="debug-status">Inicializando...</div>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      if (window.location.protocol !== 'https:') {
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
         showToast('Este aplicativo requer HTTPS. Use um servidor seguro.', 'error', false);
         updateDebugStatus('Erro: HTTPS necessário');
         return;
@@ -364,7 +364,7 @@
         toast.innerHTML = message + (showRetry ? ' <button class="retry-button">Tentar novamente</button>' : '');
         toast.className = `toast toast-${type}`;
         toast.classList.remove('hidden');
-        setTimeout(() => toast.classList.add('hidden'), type === 'error' ? 8000 : 4000);
+        setTimeout(() => toast.classList.add('hidden'), type === 'error' ? 10000 : 4000);
         if (showRetry) {
           const retryButton = toast.querySelector('.retry-button');
           retryButton.removeEventListener('click', initialize);
@@ -433,13 +433,38 @@
         oval.style.border = '6px solid #ffffff';
       }
 
+      // Verifica permissões da câmera
+      async function checkCameraPermission() {
+        try {
+          const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+          console.log('Permissão da câmera:', permissionStatus.state);
+          if (permissionStatus.state === 'denied') {
+            return { granted: false, message: 'Permissão para câmera negada. Habilite nas configurações do navegador.' };
+          }
+          return { granted: permissionStatus.state === 'granted' };
+        } catch (error) {
+          console.error('Erro ao verificar permissão:', error);
+          return { granted: false, message: 'Erro ao verificar permissão da câmera.' };
+        }
+      }
+
       // Inicia o vídeo da câmera
-      async function startVideo() {
+      async function startVideo(attempt = 1, maxAttempts = 3) {
         try {
           updateDebugStatus('Iniciando vídeo...');
+          console.log(`Tentativa ${attempt} de iniciar vídeo`);
           stopStream();
           faceVideo.classList.add('fullscreen-video');
           faceVideo.style.display = 'block';
+
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('API de mídia não suportada pelo navegador.');
+          }
+
+          const permission = await checkCameraPermission();
+          if (!permission.granted) {
+            throw new Error(permission.message || 'Permissão da câmera não concedida.');
+          }
 
           const constraints = {
             video: {
@@ -484,17 +509,24 @@
           isDetectionActive = true;
           detectFaces();
         } catch (error) {
-          console.error('Erro ao iniciar vídeo:', error);
+          console.error(`Erro ao iniciar vídeo (tentativa ${attempt}):`, error);
           let errorMessage = 'Não foi possível acessar a câmera.';
-          if (error.name === 'NotAllowedError') {
-            errorMessage = 'Permissão para câmera negada. Habilite nas configurações.';
+          if (error.name === 'NotAllowedError' || error.message.includes('Permissão')) {
+            errorMessage = 'Permissão para câmera negada. Habilite nas configurações do navegador.';
           } else if (error.name === 'NotFoundError') {
-            errorMessage = 'Câmera não encontrada. Verifique o dispositivo.';
+            errorMessage = 'Nenhuma câmera encontrada. Verifique o dispositivo.';
           } else if (error.name === 'NotReadableError') {
-            errorMessage = 'Câmera em uso por outro aplicativo.';
+            errorMessage = 'Câmera em uso por outro aplicativo. Feche outros apps.';
+          } else if (error.name === 'OverconstrainedError') {
+            errorMessage = 'Resolução não suportada. Tente outro dispositivo.';
           }
+          updateDebugStatus(`Erro no vídeo: ${errorMessage}`);
           showToast(errorMessage, 'error', true);
-          updateDebugStatus('Erro no vídeo: ' + errorMessage);
+          if (attempt < maxAttempts && error.name === 'NotReadableError') {
+            console.log(`Tentando novamente em 1s (tentativa ${attempt + 1})`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            return startVideo(attempt + 1, maxAttempts);
+          }
           fallbackButton.classList.remove('hidden');
           stopStream();
         }
@@ -841,7 +873,7 @@
 
       fallbackButton.addEventListener('click', () => {
         fallbackButton.classList.add('hidden');
-        initialize hydrophobia();
+        initialize();
         console.log('Fallback clicado');
         updateDebugStatus('Fallback acionado');
       });
@@ -858,7 +890,7 @@
 
       // Inicializa a aplicação
       async function initialize() {
-        modelLoading.classList.remove('countdown');
+        modelLoading.classList.remove('hidden');
         updateDebugStatus('Inicializando...');
         try {
           await startVideo();
@@ -871,6 +903,7 @@
           console.error('Erro na inicialização:', error);
           showToast('Erro ao iniciar. Tente novamente.', 'error', true);
           updateDebugStatus('Erro na inicialização');
+          fallbackButton.classList.remove('hidden');
         } finally {
           modelLoading.classList.add('hidden');
         }
