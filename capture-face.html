@@ -111,8 +111,8 @@
     .face-oval {
       border: 6px solid #ffffff;
       border-radius: 50%;
-      width: 350px;
-      height: 525px;
+      width: 400px;
+      height: 600px;
       position: absolute;
       top: 50%;
       left: 50%;
@@ -282,8 +282,8 @@
         font-size: 15px;
       }
       .face-oval {
-        width: 300px;
-        height: 450px;
+        width: 340px;
+        height: 510px;
       }
       .countdown {
         font-size: 60px;
@@ -539,7 +539,10 @@
 
       // Inicia a contagem regressiva
       async function startCountdown() {
-        if (isCountingDown || isCapturing) return;
+        if (isCountingDown || isCapturing) {
+          console.log('Contagem ou captura já em andamento');
+          return;
+        }
         isCountingDown = true;
         isDetectionActive = false;
         faceFeedback.innerHTML = 'Mantenha o rosto no centro';
@@ -563,9 +566,11 @@
             countdown.style.display = 'none';
             isCountingDown = false;
             isDetectionActive = true;
-            faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
             alignedFrames = 0;
+            faceFeedback.innerHTML = detections.length === 0 ? '😶 Nenhum rosto detectado' : '⚠️ Apenas um rosto';
             console.log('Contagem interrompida: rosto inválido');
+            updateDebugStatus('Contagem interrompida: rosto inválido');
+            oval.classList.remove('aligned');
             return;
           }
 
@@ -598,7 +603,7 @@
           );
 
           const faceWidth = box.width * scaleX;
-          const minWidth = 0.75 * ovalWidth;
+          const minWidth = 0.85 * ovalWidth;
           const maxWidth = 1.1 * ovalWidth;
           const isSizeCorrect = faceWidth >= minWidth && faceWidth <= maxWidth;
 
@@ -606,9 +611,11 @@
             countdown.style.display = 'none';
             isCountingDown = false;
             isDetectionActive = true;
-            faceFeedback.innerHTML = !isInsideOval ? '↔️ Encaixe o rosto no centro' : (faceWidth < minWidth ? '🔍 Aproxime o rosto' : '🔍 Afaste o rosto');
             alignedFrames = 0;
+            faceFeedback.innerHTML = !isInsideOval ? '↔️ Encaixe o rosto no centro' : (faceWidth < minWidth ? '🔍 Aproxime o rosto' : '🔍 Afaste o rosto');
             console.log('Contagem interrompida: rosto desalinhado');
+            updateDebugStatus('Contagem interrompida: rosto desalinhado');
+            oval.classList.remove('aligned');
             return;
           }
         }
@@ -687,7 +694,7 @@
             );
 
             const faceWidth = box.width * scaleX;
-            const minWidth = 0.75 * ovalWidth;
+            const minWidth = 0.85 * ovalWidth;
             const maxWidth = 1.1 * ovalWidth;
             const isSizeCorrect = faceWidth >= minWidth && faceWidth <= maxWidth;
 
@@ -717,10 +724,12 @@
                   faceFeedback.innerHTML = '💡 Melhore a iluminação';
                   alignedFrames = 0;
                   console.log('Nitidez insuficiente');
+                  oval.classList.remove('aligned');
                 }
               } else {
                 faceFeedback.innerHTML = '✅ Encaixe perfeito! Aguarde...';
                 updateDebugStatus('Rosto alinhado');
+                oval.classList.add('aligned');
               }
             } else {
               alignedFrames = 0;
@@ -820,13 +829,13 @@
             0, 0, targetWidth, targetHeight
           );
 
-          const imageData = cropCanvas.toDataURL('image/jpeg', 0.98);
+          const imageData = cropCanvas.toDataURL('image/jpeg', 0.8);
           if (!imageData || imageData === 'data:,') {
             throw new Error('Imagem inválida');
           }
           confirmationImage.src = imageData;
           confirmationModal.classList.remove('hidden');
-          console.log('Foto capturada');
+          console amateurs showing a captured face for verification;
           updateDebugStatus('Foto capturada');
         } catch (error) {
           console.error('Erro ao capturar:', error);
